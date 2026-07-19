@@ -41,7 +41,6 @@ class PlaylistDetailScreen extends ConsumerWidget {
           final isCustom = playlist.type == PlaylistType.custom;
           final isOwner = currentUser != null && isCustom && playlist.userId == currentUser.uid;
 
-          // Status se a playlist pública do YT está salva na biblioteca do usuário
           final isSavedAsync = currentUser != null
               ? ref.watch(isPlaylistSavedProvider((userId: currentUser.uid, playlistId: playlist.id)))
               : const AsyncValue.data(false);
@@ -67,7 +66,6 @@ class PlaylistDetailScreen extends ConsumerWidget {
                 ),
                 actions: [
                   if (currentUser != null) ...[
-                    // Botão Salvar / Remover da Biblioteca (para playlists públicas do YouTube)
                     if (!isCustom)
                       IconButton(
                         icon: Container(
@@ -114,7 +112,6 @@ class PlaylistDetailScreen extends ConsumerWidget {
                           ref.invalidate(userPlaylistsStreamProvider(currentUser.uid));
                         },
                       ),
-                    // Botão Duplicar / Criar Cópia Editável
                     IconButton(
                       icon: Container(
                         padding: const EdgeInsets.all(8),
@@ -284,70 +281,75 @@ class PlaylistDetailScreen extends ConsumerWidget {
                     (context, index) {
                       final track = playlist.tracks[index];
 
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 6.0),
-                        padding: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 6.0),
+                        child: Material(
                           color: AppColors.surface,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.divider, width: 0.5),
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: SizedBox(
-                              width: 48,
-                              height: 48,
-                              child: track.thumbnailUrl != null
-                                  ? CachedNetworkImage(
-                                      imageUrl: track.thumbnailUrl!,
-                                      fit: BoxFit.cover,
-                                      errorWidget: (context, url, error) => Container(
-                                        color: AppColors.cardBackground,
-                                        child: const Icon(Icons.music_note, color: AppColors.primary),
-                                      ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.divider, width: 0.5),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: SizedBox(
+                                  width: 48,
+                                  height: 48,
+                                  child: track.thumbnailUrl != null
+                                      ? CachedNetworkImage(
+                                          imageUrl: track.thumbnailUrl!,
+                                          fit: BoxFit.cover,
+                                          errorWidget: (context, url, error) => Container(
+                                            color: AppColors.cardBackground,
+                                            child: const Icon(Icons.music_note, color: AppColors.primary),
+                                          ),
+                                        )
+                                      : Container(
+                                          color: AppColors.cardBackground,
+                                          child: const Icon(Icons.music_note, color: AppColors.primary),
+                                        ),
+                                ),
+                              ),
+                              title: Text(
+                                track.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              subtitle: Text(
+                                track.artistName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              trailing: isOwner
+                                  ? IconButton(
+                                      icon: const Icon(Icons.close, color: AppColors.textMuted, size: 20),
+                                      onPressed: () async {
+                                        await ref
+                                            .read(playlistMutationsProvider.notifier)
+                                            .removeTrackFromPlaylist(
+                                              playlistId: playlist.id,
+                                              trackId: track.id,
+                                            );
+                                        ref.invalidate(playlistDetailsProvider(playlistId));
+                                      },
                                     )
-                                  : Container(
-                                      color: AppColors.cardBackground,
-                                      child: const Icon(Icons.music_note, color: AppColors.primary),
-                                    ),
+                                  : null,
+                              onTap: () {},
                             ),
                           ),
-                          title: Text(
-                            track.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          subtitle: Text(
-                            track.artistName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          trailing: isOwner
-                              ? IconButton(
-                                  icon: const Icon(Icons.close, color: AppColors.textMuted, size: 20),
-                                  onPressed: () async {
-                                    await ref
-                                        .read(playlistMutationsProvider.notifier)
-                                        .removeTrackFromPlaylist(
-                                          playlistId: playlist.id,
-                                          trackId: track.id,
-                                        );
-                                    ref.invalidate(playlistDetailsProvider(playlistId));
-                                  },
-                                )
-                              : null,
-                          onTap: () {},
                         ),
                       );
                     },

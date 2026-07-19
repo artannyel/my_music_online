@@ -62,7 +62,7 @@ class FirestorePlaylistRepository implements PlaylistRepository {
       }
     } catch (_) {}
 
-    // 2. Fallback imediato para IDs de demonstração (evita requisitar 'demo_...' na API do YouTube)
+    // Fallback imediato para IDs de demonstração (evita requisitar 'demo_...' na API do YouTube)
     if (ytSearchId.startsWith('demo_')) {
       return PlaylistModel(
         id: ytSearchId,
@@ -86,11 +86,16 @@ class FirestorePlaylistRepository implements PlaylistRepository {
       );
     }
 
-    // 3. Busca dados ao vivo do YouTube Music / Álbum
+    // Ajusta o prefixo para chamadas no YouTube InnerTube API (PL..., RD... -> VLPL..., VLRD...)
+    if (ytSearchId.startsWith('PL') || ytSearchId.startsWith('RD')) {
+      ytSearchId = 'VL$ytSearchId';
+    }
+
+    // 2. Busca dados ao vivo do YouTube Music / Álbum
     try {
       await _ytMusic.initialize(gl: 'BR', hl: 'pt-BR');
 
-      // Se for um Álbum (ID começa com OLAK ou MPREb)
+      // Se for um Álbum do YouTube Music (IDs começando com OLAK ou MPREb)
       if (ytSearchId.startsWith('OLAK') || ytSearchId.startsWith('MPREb')) {
         try {
           final rawAlbum = await _ytMusic.getAlbum(ytSearchId);
@@ -131,7 +136,7 @@ class FirestorePlaylistRepository implements PlaylistRepository {
         } catch (_) {}
       }
 
-      // Tenta carregar como Playlist do YouTube Music
+      // Tenta carregar como Playlist do YouTube Music (oficial ou comunidade)
       try {
         final rawPlaylist = await _ytMusic.getPlaylist(ytSearchId);
         final String? cover = rawPlaylist.thumbnails.isNotEmpty
@@ -162,7 +167,9 @@ class FirestorePlaylistRepository implements PlaylistRepository {
         return PlaylistModel(
           id: firestorePlaylist?.id ?? rawPlaylist.playlistId,
           userId: firestorePlaylist?.userId,
-          title: firestorePlaylist?.title ?? rawPlaylist.name,
+          title: firestorePlaylist?.title.isNotEmpty == true
+              ? rawPlaylist.name
+              : (firestorePlaylist?.title ?? 'Playlist do YouTube'),
           description: firestorePlaylist?.description ?? rawPlaylist.artist.name,
           coverUrl: firestorePlaylist?.coverUrl ?? cover,
           tracks: tracks,
@@ -173,7 +180,7 @@ class FirestorePlaylistRepository implements PlaylistRepository {
         );
       } catch (_) {}
 
-      // Tenta fallback para Álbum se não começou com OLAK mas falhou como playlist
+      // Fallback para Álbum se a requisição de playlist falhar
       try {
         final rawAlbum = await _ytMusic.getAlbum(ytSearchId);
         final String? cover = rawAlbum.thumbnails.isNotEmpty

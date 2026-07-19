@@ -155,104 +155,110 @@ class PlaylistsScreen extends ConsumerWidget {
             final playlist = playlists[index];
             final isCustom = playlist.type == PlaylistType.custom;
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12.0),
-              decoration: BoxDecoration(
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Material(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider, width: 0.5),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(12),
-                leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    width: 56,
-                    height: 56,
-                    child: playlist.coverUrl != null
-                        ? CachedNetworkImage(
-                            imageUrl: playlist.coverUrl!,
-                            fit: BoxFit.cover,
-                            errorWidget: (context, url, error) => Container(
-                              color: AppColors.cardBackground,
-                              child: const Icon(Icons.queue_music, color: AppColors.primary),
+                clipBehavior: Clip.antiAlias,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.divider, width: 0.5),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(12),
+                    leading: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        width: 56,
+                        height: 56,
+                        child: playlist.coverUrl != null
+                            ? CachedNetworkImage(
+                                imageUrl: playlist.coverUrl!,
+                                fit: BoxFit.cover,
+                                errorWidget: (context, url, error) => Container(
+                                  color: AppColors.cardBackground,
+                                  child: const Icon(Icons.queue_music, color: AppColors.primary),
+                                ),
+                              )
+                            : Container(
+                                color: AppColors.cardBackground,
+                                child: const Icon(Icons.queue_music, color: AppColors.primary),
+                              ),
+                      ),
+                    ),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            playlist.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
                             ),
-                          )
-                        : Container(
-                            color: AppColors.cardBackground,
-                            child: const Icon(Icons.queue_music, color: AppColors.primary),
                           ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isCustom ? AppColors.primary : AppColors.secondary,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isCustom ? 'Sua' : 'YT',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    subtitle: Text(
+                      '${isCustom ? '${playlist.tracks.length} faixas' : 'Salva do YouTube'} ${playlist.description != null ? '• ${playlist.description}' : ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: AppColors.textMuted),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            backgroundColor: AppColors.surface,
+                            title: const Text('Remover Playlist', style: TextStyle(color: AppColors.textPrimary)),
+                            content: Text('Tem certeza que deseja remover "${playlist.title}" da sua biblioteca?', style: const TextStyle(color: AppColors.textSecondary)),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('Remover', style: TextStyle(color: AppColors.error)),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          ref.read(playlistMutationsProvider.notifier).deletePlaylist(playlist.id);
+                        }
+                      },
+                    ),
+                    onTap: () {
+                      final targetId = playlist.originalYtPlaylistId ?? playlist.id;
+                      context.push('/playlist/$targetId');
+                    },
                   ),
                 ),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        playlist.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isCustom ? AppColors.primary : AppColors.secondary,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        isCustom ? 'Sua' : 'YT',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                subtitle: Text(
-                  '${isCustom ? '${playlist.tracks.length} faixas' : 'Salva do YouTube'} ${playlist.description != null ? '• ${playlist.description}' : ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.textSecondary),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AppColors.textMuted),
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        backgroundColor: AppColors.surface,
-                        title: const Text('Remover Playlist', style: TextStyle(color: AppColors.textPrimary)),
-                        content: Text('Tem certeza que deseja remover "${playlist.title}" da sua biblioteca?', style: const TextStyle(color: AppColors.textSecondary)),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Remover', style: TextStyle(color: AppColors.error)),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    if (confirm == true) {
-                      ref.read(playlistMutationsProvider.notifier).deletePlaylist(playlist.id);
-                    }
-                  },
-                ),
-                onTap: () {
-                  final targetId = playlist.originalYtPlaylistId ?? playlist.id;
-                  context.push('/playlist/$targetId');
-                },
               ),
             );
           },
