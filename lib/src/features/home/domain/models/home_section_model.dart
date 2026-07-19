@@ -5,7 +5,7 @@ class HomeItemModel {
   final String id;
   final String title;
   final String subtitle;
-  final String thumbnailUrl;
+  final String? thumbnailUrl;
   final HomeItemType type;
   final String? artistId;
   final String? albumId;
@@ -15,7 +15,7 @@ class HomeItemModel {
     required this.id,
     required this.title,
     required this.subtitle,
-    required this.thumbnailUrl,
+    this.thumbnailUrl,
     required this.type,
     this.artistId,
     this.albumId,
@@ -27,7 +27,7 @@ class HomeItemModel {
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
       subtitle: json['subtitle'] as String? ?? '',
-      thumbnailUrl: json['thumbnailUrl'] as String? ?? '',
+      thumbnailUrl: json['thumbnailUrl'] as String?,
       type: HomeItemType.values.firstWhere(
         (e) => e.name == json['type'],
         orElse: () => HomeItemType.song,
