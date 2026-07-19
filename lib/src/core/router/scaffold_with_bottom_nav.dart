@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:my_music_online/src/core/theme/app_colors.dart';
+import 'package:my_music_online/src/features/player/presentation/widgets/mini_player_widget.dart';
 import 'route_names.dart';
 
 /// ScaffoldWithBottomNav envolve o conteúdo principal das páginas (Home, Search, Playlists, Settings)
@@ -46,7 +47,7 @@ class ScaffoldWithBottomNav extends StatelessWidget {
       body: Column(
         children: [
           Expanded(child: child),
-          // TODO: O MiniPlayerWidget será renderizado aqui acima da BottomNavigationBar
+          const MiniPlayerWidget(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -55,6 +56,7 @@ class ScaffoldWithBottomNav extends StatelessWidget {
         backgroundColor: AppColors.surface,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textSecondary,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
