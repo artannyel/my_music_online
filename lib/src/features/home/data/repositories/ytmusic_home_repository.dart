@@ -18,29 +18,42 @@ class YtMusicHomeRepository implements HomeRepository {
       final searchResults = await _ytMusic.search('Top Hits 2026');
 
       if (searchResults.isNotEmpty) {
-        final items = searchResults.take(10).map((res) {
-          return HomeItemModel(
-            id: res.videoId ?? res.name,
-            title: res.name,
-            subtitle: res.artist?.name ?? 'Música Online',
-            thumbnailUrl: res.thumbnails.isNotEmpty
-                ? res.thumbnails.last.url
-                : 'https://picsum.photos/300/300',
-            type: HomeItemType.song,
-            artistId: res.artist?.artistId,
-          );
-        }).toList();
+        final items = <HomeItemModel>[];
+        
+        for (final res in searchResults.take(10)) {
+          final dyn = res as dynamic;
+          final String title = dyn.title?.toString() ?? dyn.name?.toString() ?? 'Música';
+          final String id = dyn.videoId?.toString() ?? dyn.id?.toString() ?? title;
+          final String artist = dyn.artist?.name?.toString() ?? dyn.artist?.toString() ?? 'Artistas em Destaque';
+          
+          String thumbnail = 'https://picsum.photos/300/300';
+          if (dyn.thumbnails != null && dyn.thumbnails is List && dyn.thumbnails.isNotEmpty) {
+            thumbnail = dyn.thumbnails.last.url?.toString() ?? thumbnail;
+          }
 
-        return [
-          HomeSectionModel(
-            title: 'Sugestões para Você',
-            items: items,
-          ),
-          HomeSectionModel(
-            title: 'Mais Tocadas da Semana',
-            items: items.reversed.toList(),
-          ),
-        ];
+          items.add(
+            HomeItemModel(
+              id: id,
+              title: title,
+              subtitle: artist,
+              thumbnailUrl: thumbnail,
+              type: HomeItemType.song,
+            ),
+          );
+        }
+
+        if (items.isNotEmpty) {
+          return [
+            HomeSectionModel(
+              title: 'Sugestões para Você',
+              items: items,
+            ),
+            HomeSectionModel(
+              title: 'Mais Tocadas da Semana',
+              items: items.reversed.toList(),
+            ),
+          ];
+        }
       }
     } catch (_) {
       // Ignora e usa fallback em ambiente offline
