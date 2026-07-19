@@ -62,9 +62,74 @@ class FirestorePlaylistRepository implements PlaylistRepository {
       }
     } catch (_) {}
 
-    // 2. Busca dados ao vivo do YouTube Music / Álbum
+    // 2. Fallback imediato para IDs de demonstração (evita requisitar 'demo_...' na API do YouTube)
+    if (ytSearchId.startsWith('demo_')) {
+      return PlaylistModel(
+        id: ytSearchId,
+        title: firestorePlaylist?.title ?? 'Playlist em Destaque',
+        description: 'Playlist demonstrativa offline',
+        tracks: const [
+          PlaylistTrackModel(
+            id: 'demo_track_1',
+            title: 'Midnight Beats',
+            artistName: 'Lo-Fi Chill',
+          ),
+          PlaylistTrackModel(
+            id: 'demo_track_2',
+            title: 'Cyberpunk Odyssey',
+            artistName: 'Electronic Pulse',
+          ),
+        ],
+        createdAt: DateTime.now(),
+        isPublic: true,
+        type: PlaylistType.youtube,
+      );
+    }
+
+    // 3. Busca dados ao vivo do YouTube Music / Álbum
     try {
       await _ytMusic.initialize(gl: 'BR', hl: 'pt-BR');
+
+      // Se for um Álbum (ID começa com OLAK ou MPREb)
+      if (ytSearchId.startsWith('OLAK') || ytSearchId.startsWith('MPREb')) {
+        try {
+          final rawAlbum = await _ytMusic.getAlbum(ytSearchId);
+          final String? cover = rawAlbum.thumbnails.isNotEmpty
+              ? (rawAlbum.thumbnails.length >= 2
+                  ? rawAlbum.thumbnails[1].url
+                  : rawAlbum.thumbnails.last.url)
+              : null;
+
+          final tracks = rawAlbum.songs.map((s) {
+            final String? thumb = s.thumbnails.isNotEmpty
+                ? (s.thumbnails.length >= 2 ? s.thumbnails[1].url : s.thumbnails.last.url)
+                : null;
+
+            return PlaylistTrackModel(
+              id: s.videoId,
+              title: s.name,
+              artistName: s.artist.name,
+              albumName: s.album?.name ?? rawAlbum.name,
+              thumbnailUrl: thumb,
+              videoId: s.videoId,
+              duration: s.duration != null ? Duration(seconds: s.duration!) : null,
+            );
+          }).toList();
+
+          return PlaylistModel(
+            id: firestorePlaylist?.id ?? rawAlbum.albumId,
+            userId: firestorePlaylist?.userId,
+            title: firestorePlaylist?.title ?? rawAlbum.name,
+            description: firestorePlaylist?.description ?? rawAlbum.artist.name,
+            coverUrl: firestorePlaylist?.coverUrl ?? cover,
+            tracks: tracks,
+            createdAt: firestorePlaylist?.createdAt ?? DateTime.now(),
+            isPublic: true,
+            type: PlaylistType.youtube,
+            originalYtPlaylistId: ytSearchId,
+          );
+        } catch (_) {}
+      }
 
       // Tenta carregar como Playlist do YouTube Music
       try {
@@ -75,21 +140,24 @@ class FirestorePlaylistRepository implements PlaylistRepository {
                 : rawPlaylist.thumbnails.last.url)
             : null;
 
-        final videos = await _ytMusic.getPlaylistVideos(ytSearchId);
-        final tracks = videos.map((v) {
-          final String? thumb = v.thumbnails.isNotEmpty
-              ? (v.thumbnails.length >= 2 ? v.thumbnails[1].url : v.thumbnails.last.url)
-              : null;
+        List<PlaylistTrackModel> tracks = [];
+        try {
+          final videos = await _ytMusic.getPlaylistVideos(ytSearchId);
+          tracks = videos.map((v) {
+            final String? thumb = v.thumbnails.isNotEmpty
+                ? (v.thumbnails.length >= 2 ? v.thumbnails[1].url : v.thumbnails.last.url)
+                : null;
 
-          return PlaylistTrackModel(
-            id: v.videoId,
-            title: v.name,
-            artistName: v.artist.name,
-            thumbnailUrl: thumb,
-            videoId: v.videoId,
-            duration: v.duration != null ? Duration(seconds: v.duration!) : null,
-          );
-        }).toList();
+            return PlaylistTrackModel(
+              id: v.videoId,
+              title: v.name,
+              artistName: v.artist.name,
+              thumbnailUrl: thumb,
+              videoId: v.videoId,
+              duration: v.duration != null ? Duration(seconds: v.duration!) : null,
+            );
+          }).toList();
+        } catch (_) {}
 
         return PlaylistModel(
           id: firestorePlaylist?.id ?? rawPlaylist.playlistId,
@@ -103,8 +171,10 @@ class FirestorePlaylistRepository implements PlaylistRepository {
           type: PlaylistType.youtube,
           originalYtPlaylistId: ytSearchId,
         );
-      } catch (_) {
-        // Se falhou ao buscar como Playlist, tenta carregar como Álbum do YouTube Music
+      } catch (_) {}
+
+      // Tenta fallback para Álbum se não começou com OLAK mas falhou como playlist
+      try {
         final rawAlbum = await _ytMusic.getAlbum(ytSearchId);
         final String? cover = rawAlbum.thumbnails.isNotEmpty
             ? (rawAlbum.thumbnails.length >= 2
@@ -140,7 +210,7 @@ class FirestorePlaylistRepository implements PlaylistRepository {
           type: PlaylistType.youtube,
           originalYtPlaylistId: ytSearchId,
         );
-      }
+      } catch (_) {}
     } catch (_) {}
 
     return firestorePlaylist;
@@ -151,7 +221,6 @@ class FirestorePlaylistRepository implements PlaylistRepository {
     required String userId,
     required PlaylistModel ytPlaylist,
   }) async {
-    // Procura se já está salva
     final query = await _playlistsRef
         .where('userId', isEqualTo: userId)
         .where('originalYtPlaylistId', isEqualTo: ytPlaylist.id)
@@ -166,7 +235,7 @@ class FirestorePlaylistRepository implements PlaylistRepository {
       title: ytPlaylist.title,
       description: ytPlaylist.description,
       coverUrl: ytPlaylist.coverUrl,
-      tracks: const [], // Músicas continuam sincronizadas via originalYtPlaylistId
+      tracks: const [],
       createdAt: DateTime.now(),
       isPublic: true,
       type: PlaylistType.youtube,
@@ -190,7 +259,6 @@ class FirestorePlaylistRepository implements PlaylistRepository {
       await doc.reference.delete();
     }
 
-    // Também verifica se playlistId foi o ID do próprio documento no Firestore
     final doc = await _playlistsRef.doc(playlistId).get();
     if (doc.exists && doc.data()?['userId'] == userId) {
       await doc.reference.delete();
@@ -272,7 +340,6 @@ class FirestorePlaylistRepository implements PlaylistRepository {
     if (doc.exists && doc.data() != null) {
       final playlist = PlaylistModel.fromJson({...doc.data()!, 'id': doc.id});
 
-      // Permite alterar faixas apenas se for do tipo customizado
       if (playlist.type != PlaylistType.custom) return;
 
       if (playlist.tracks.any((t) => t.id == track.id)) {
@@ -300,7 +367,6 @@ class FirestorePlaylistRepository implements PlaylistRepository {
     if (doc.exists && doc.data() != null) {
       final playlist = PlaylistModel.fromJson({...doc.data()!, 'id': doc.id});
 
-      // Permite alterar faixas apenas se for do tipo customizado
       if (playlist.type != PlaylistType.custom) return;
 
       final updatedTracks = playlist.tracks.where((t) => t.id != trackId).toList();
