@@ -7,8 +7,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/home_section_model.dart';
 import '../controllers/home_controller.dart';
 
-/// HomeScreen exibe a interface principal de sugestões, destaques e mais tocadas
-/// em modo escuro alinhada ao protótipo do Stitch Google Design.
+/// HomeScreen exibe as seções reais retornadas do YTMusic (sugestões, playlists, álbuns, artistas)
+/// com badges visuais distintas e navegação orientada por tipo.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -17,6 +17,49 @@ class HomeScreen extends ConsumerWidget {
     if (hour < 12) return 'Bom dia';
     if (hour < 18) return 'Boa tarde';
     return 'Boa noite';
+  }
+
+  void _onItemTap(BuildContext context, HomeItemModel item) {
+    switch (item.type) {
+      case HomeItemType.playlist:
+        context.push('/playlist/${item.id}');
+        break;
+      case HomeItemType.album:
+        context.push('/album/${item.id}');
+        break;
+      case HomeItemType.artist:
+        context.push('/artist/${item.id}');
+        break;
+      case HomeItemType.song:
+        // TODO: Iniciar reprodução da música no PlayerController
+        break;
+    }
+  }
+
+  Widget _getBadgeIcon(HomeItemType type) {
+    switch (type) {
+      case HomeItemType.playlist:
+        return const Icon(Icons.playlist_play, color: Colors.white, size: 14);
+      case HomeItemType.album:
+        return const Icon(Icons.album, color: Colors.white, size: 14);
+      case HomeItemType.artist:
+        return const Icon(Icons.person, color: Colors.white, size: 14);
+      case HomeItemType.song:
+        return const Icon(Icons.music_note, color: Colors.white, size: 14);
+    }
+  }
+
+  Color _getBadgeColor(HomeItemType type) {
+    switch (type) {
+      case HomeItemType.playlist:
+        return AppColors.secondary;
+      case HomeItemType.album:
+        return Colors.amber.shade800;
+      case HomeItemType.artist:
+        return Colors.teal;
+      case HomeItemType.song:
+        return AppColors.primary;
+    }
   }
 
   @override
@@ -106,12 +149,12 @@ class HomeScreen extends ConsumerWidget {
                     child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                 ),
-                error: (error, stack) => SliverFillRemaining(
+                error: (error, stack) => const SliverFillRemaining(
                   child: Center(
                     child: Text(
-                      'Erro ao carregar músicas.\nPuxe para atualizar.',
+                      'Erro ao carregar seções.\nPuxe para atualizar.',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(color: AppColors.textSecondary),
                     ),
                   ),
                 ),
@@ -127,7 +170,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  /// Constrói carrossel horizontal para sugestões
+  /// Constrói carrossel horizontal com badges de identificação por tipo
   Widget _buildHorizontalSection(BuildContext context, HomeSectionModel section) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,7 +187,7 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
         SizedBox(
-          height: 220,
+          height: 225,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -160,70 +203,95 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildHorizontalCard(BuildContext context, HomeItemModel item) {
-    return Container(
-      width: 150,
-      margin: const EdgeInsets.symmetric(horizontal: 6.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 150,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(
-                  color: AppColors.accentGlow,
-                  blurRadius: 8,
-                  offset: Offset(0, 4),
+    final isArtist = item.type == HomeItemType.artist;
+
+    return GestureDetector(
+      onTap: () => _onItemTap(context, item),
+      child: Container(
+        width: 150,
+        margin: const EdgeInsets.symmetric(horizontal: 6.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    shape: isArtist ? BoxShape.circle : BoxShape.rectangle,
+                    borderRadius: isArtist ? null : BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: AppColors.accentGlow,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: isArtist
+                        ? BorderRadius.circular(75)
+                        : BorderRadius.circular(16),
+                    child: CachedNetworkImage(
+                      imageUrl: item.thumbnailUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      placeholder: (context, url) => Container(
+                        color: AppColors.cardBackground,
+                        child: const Center(
+                          child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: AppColors.cardBackground,
+                        child: const Icon(Icons.music_note, color: AppColors.primary, size: 40),
+                      ),
+                    ),
+                  ),
+                ),
+                // Badge de tipo (Playlist, Álbum, Artista)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: _getBadgeColor(item.type).withValues(alpha: 0.9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: _getBadgeIcon(item.type),
+                  ),
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: CachedNetworkImage(
-                imageUrl: item.thumbnailUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                placeholder: (context, url) => Container(
-                  color: AppColors.cardBackground,
-                  child: const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: AppColors.cardBackground,
-                  child: const Icon(Icons.music_note, color: AppColors.primary, size: 40),
-                ),
+            const SizedBox(height: 8),
+            Text(
+              item.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            item.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+            const SizedBox(height: 2),
+            Text(
+              item.subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            item.subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  /// Constrói lista vertical para mais tocadas
+  /// Constrói lista vertical de seções adicionais
   Widget _buildVerticalSection(BuildContext context, HomeSectionModel section) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,71 +316,91 @@ class HomeScreen extends ConsumerWidget {
             final item = section.items[index];
             final rankNumber = (index + 1).toString().padLeft(2, '0');
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12.0),
-              padding: const EdgeInsets.all(8.0),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.divider, width: 0.5),
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    rankNumber,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: CachedNetworkImage(
-                      imageUrl: item.thumbnailUrl,
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                      errorWidget: (context, url, error) => Container(
-                        color: AppColors.cardBackground,
-                        child: const Icon(Icons.music_note, color: AppColors.primary),
+            return InkWell(
+              onTap: () => _onItemTap(context, item),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12.0),
+                padding: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.divider, width: 0.5),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      rankNumber,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(width: 12),
+                    Stack(
                       children: [
-                        Text(
-                          item.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(item.type == HomeItemType.artist ? 25 : 8),
+                          child: CachedNetworkImage(
+                            imageUrl: item.thumbnailUrl,
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.cardBackground,
+                              child: const Icon(Icons.music_note, color: AppColors.primary),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
+                        Positioned(
+                          bottom: 2,
+                          right: 2,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: _getBadgeColor(item.type),
+                              shape: BoxShape.circle,
+                            ),
+                            child: _getBadgeIcon(item.type),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
-                    onPressed: () {},
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            item.subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
               ),
             );
           },
