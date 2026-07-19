@@ -8,7 +8,7 @@ import '../../domain/models/home_section_model.dart';
 import '../controllers/home_controller.dart';
 
 /// HomeScreen exibe as seções reais retornadas do YTMusic (sugestões, playlists, álbuns, artistas)
-/// com badges visuais distintas e navegação orientada por tipo.
+/// com fallback visual limpo (inicial do título / ícone por tipo) quando não há imagem.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -60,6 +60,71 @@ class HomeScreen extends ConsumerWidget {
       case HomeItemType.song:
         return AppColors.primary;
     }
+  }
+
+  /// Constrói a capa da mídia ou um fallback elegante com a inicial do título e ícone por tipo
+  Widget _buildImageOrFallback(HomeItemModel item, {double? width, double? height, bool isCircle = false}) {
+    final hasUrl = item.thumbnailUrl != null && item.thumbnailUrl!.trim().isNotEmpty;
+
+    if (hasUrl) {
+      return CachedNetworkImage(
+        imageUrl: item.thumbnailUrl!,
+        fit: BoxFit.cover,
+        width: width ?? double.infinity,
+        height: height ?? double.infinity,
+        placeholder: (context, url) => _buildPlaceholderFallback(item, isCircle: isCircle),
+        errorWidget: (context, url, error) => _buildFallbackWidget(item, isCircle: isCircle),
+      );
+    }
+
+    return _buildFallbackWidget(item, isCircle: isCircle);
+  }
+
+  Widget _buildPlaceholderFallback(HomeItemModel item, {bool isCircle = false}) {
+    return Container(
+      color: AppColors.cardBackground,
+      child: const Center(
+        child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+      ),
+    );
+  }
+
+  Widget _buildFallbackWidget(HomeItemModel item, {bool isCircle = false}) {
+    final initialLetter = item.title.trim().isNotEmpty
+        ? item.title.trim()[0].toUpperCase()
+        : '?';
+
+    return Container(
+      decoration: BoxDecoration(
+        shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.cardBackground,
+            AppColors.surface,
+            _getBadgeColor(item.type).withValues(alpha: 0.3),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _getBadgeIcon(item.type),
+            const SizedBox(height: 4),
+            Text(
+              initialLetter,
+              style: TextStyle(
+                fontSize: isCircle ? 24 : 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -232,21 +297,7 @@ class HomeScreen extends ConsumerWidget {
                     borderRadius: isArtist
                         ? BorderRadius.circular(75)
                         : BorderRadius.circular(16),
-                    child: CachedNetworkImage(
-                      imageUrl: item.thumbnailUrl,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      placeholder: (context, url) => Container(
-                        color: AppColors.cardBackground,
-                        child: const Center(
-                          child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: AppColors.cardBackground,
-                        child: const Icon(Icons.music_note, color: AppColors.primary, size: 40),
-                      ),
-                    ),
+                    child: _buildImageOrFallback(item, isCircle: isArtist),
                   ),
                 ),
                 // Badge de tipo (Playlist, Álbum, Artista)
@@ -342,15 +393,10 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(item.type == HomeItemType.artist ? 25 : 8),
-                          child: CachedNetworkImage(
-                            imageUrl: item.thumbnailUrl,
+                          child: SizedBox(
                             width: 50,
                             height: 50,
-                            fit: BoxFit.cover,
-                            errorWidget: (context, url, error) => Container(
-                              color: AppColors.cardBackground,
-                              child: const Icon(Icons.music_note, color: AppColors.primary),
-                            ),
+                            child: _buildImageOrFallback(item, width: 50, height: 50, isCircle: item.type == HomeItemType.artist),
                           ),
                         ),
                         Positioned(

@@ -2,8 +2,8 @@ import 'package:dart_ytmusic_api/dart_ytmusic_api.dart';
 import '../../domain/models/home_section_model.dart';
 import '../../domain/repositories/home_repository.dart';
 
-/// Implementação do HomeRepository padronizado que consome getHomeSections() da API dart_ytmusic_api
-/// configurado para o Brasil (GL=BR, HL=pt-BR), identificando cada item por seu tipo (Song, Playlist, Album, Artist).
+/// Implementação do HomeRepository padronizado que consome getHomeSections() da API dart_ytmusic_api,
+/// com thumbnailUrl opcional sem URLs hardcoded e fallback por ícone/inicial.
 class YtMusicHomeRepository implements HomeRepository {
   final YTMusic _ytMusic;
 
@@ -13,7 +13,6 @@ class YtMusicHomeRepository implements HomeRepository {
   @override
   Future<List<HomeSectionModel>> getHomeSections() async {
     try {
-      // Inicializa a API configurada para o mercado brasileiro e idioma pt-BR
       await _ytMusic.initialize(gl: 'BR', hl: 'pt-BR');
       
       final List<HomeSection> rawSections = await _ytMusic.getHomeSections();
@@ -36,7 +35,7 @@ class YtMusicHomeRepository implements HomeRepository {
                   id: rawItem.videoId,
                   title: rawItem.name,
                   subtitle: rawItem.artist.name,
-                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : 'https://picsum.photos/300/300',
+                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : null,
                   type: HomeItemType.song,
                   artistId: rawItem.artist.artistId,
                   albumId: rawItem.album?.albumId,
@@ -47,7 +46,7 @@ class YtMusicHomeRepository implements HomeRepository {
                   id: rawItem.albumId,
                   title: rawItem.name,
                   subtitle: rawItem.artist.name.isNotEmpty ? rawItem.artist.name : 'Álbum',
-                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : 'https://picsum.photos/300/300',
+                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : null,
                   type: HomeItemType.album,
                   artistId: rawItem.artist.artistId,
                   albumId: rawItem.albumId,
@@ -57,7 +56,7 @@ class YtMusicHomeRepository implements HomeRepository {
                   id: rawItem.artistId,
                   title: rawItem.name,
                   subtitle: 'Artista',
-                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : 'https://picsum.photos/300/300',
+                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : null,
                   type: HomeItemType.artist,
                   artistId: rawItem.artistId,
                 );
@@ -66,7 +65,7 @@ class YtMusicHomeRepository implements HomeRepository {
                   id: rawItem.playlistId,
                   title: rawItem.name,
                   subtitle: 'Playlist',
-                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : 'https://picsum.photos/300/300',
+                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : null,
                   type: HomeItemType.playlist,
                 );
               } else {
@@ -75,9 +74,9 @@ class YtMusicHomeRepository implements HomeRepository {
                 if (name.isNotEmpty) {
                   final String id = dyn.videoId?.toString() ?? dyn.playlistId?.toString() ?? dyn.albumId?.toString() ?? dyn.artistId?.toString() ?? name;
                   final String subtitle = dyn.artist?.name?.toString() ?? dyn.subtitle?.toString() ?? 'Música';
-                  String thumbnail = 'https://picsum.photos/300/300';
+                  String? thumbnail;
                   if (dyn.thumbnails != null && dyn.thumbnails is List && (dyn.thumbnails as List).isNotEmpty) {
-                    thumbnail = (dyn.thumbnails as List).last.url?.toString() ?? thumbnail;
+                    thumbnail = (dyn.thumbnails as List).last.url?.toString();
                   }
 
                   HomeItemType itemType = HomeItemType.song;
@@ -135,21 +134,18 @@ class YtMusicHomeRepository implements HomeRepository {
             id: 'demo_1',
             title: 'Midnight Beats',
             subtitle: 'Lo-Fi Chill & Synth',
-            thumbnailUrl: 'https://picsum.photos/seed/music1/300/300',
             type: HomeItemType.song,
           ),
           HomeItemModel(
             id: 'demo_playlist_1',
             title: 'Top Brasil 2026',
             subtitle: 'Playlist Recomendada',
-            thumbnailUrl: 'https://picsum.photos/seed/playlist1/300/300',
             type: HomeItemType.playlist,
           ),
           HomeItemModel(
             id: 'demo_2',
             title: 'Cyberpunk Odyssey',
             subtitle: 'Electronic Pulse',
-            thumbnailUrl: 'https://picsum.photos/seed/music2/300/300',
             type: HomeItemType.song,
           ),
         ],
@@ -161,14 +157,12 @@ class YtMusicHomeRepository implements HomeRepository {
             id: 'demo_playlist_2',
             title: 'Hits Internacionais',
             subtitle: 'Playlist',
-            thumbnailUrl: 'https://picsum.photos/seed/playlist2/300/300',
             type: HomeItemType.playlist,
           ),
           HomeItemModel(
             id: 'demo_album_1',
             title: 'Starboy Deluxe',
             subtitle: 'Álbum',
-            thumbnailUrl: 'https://picsum.photos/seed/album1/300/300',
             type: HomeItemType.album,
           ),
         ],
