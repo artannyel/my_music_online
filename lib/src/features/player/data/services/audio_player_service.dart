@@ -3,7 +3,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../../domain/models/player_state_model.dart';
 
 /// Serviço encapsulado do Player de Áudio que utiliza YoutubeExplode para
-/// extração de URLs de stream e just_audio com cabeçalhos HTTP adequados para o ExoPlayer (Android).
+/// extração de URLs de stream e just_audio com suporte a tráfego HTTPS/Cleartext no Android.
 class AudioPlayerService {
   final AudioPlayer _audioPlayer;
   final YoutubeExplode _ytExplode;
@@ -21,6 +21,14 @@ class AudioPlayerService {
 
   AudioPlayer get player => _audioPlayer;
 
+  /// Formata a URL garantindo o protocolo HTTPS quando aplicável
+  String _normalizeUrl(String rawUrl) {
+    if (rawUrl.startsWith('http://') && !rawUrl.contains('127.0.0.1')) {
+      return rawUrl.replaceFirst('http://', 'https://');
+    }
+    return rawUrl;
+  }
+
   /// Resolve a lista de URLs de stream de áudio (priorizando MP4 e maior bitrate)
   Future<List<String>> resolveAudioUrls(String videoId) async {
     final urls = <String>[];
@@ -29,21 +37,18 @@ class AudioPlayerService {
       final audioStreams = manifest.audioOnly;
 
       if (audioStreams.isNotEmpty) {
-        // Prioriza streams em container MP4 (compatibilidade total com ExoPlayer)
         final mp4Streams = audioStreams.where((s) => s.container.name == 'mp4').toList();
         if (mp4Streams.isNotEmpty) {
-          urls.add(mp4Streams.withHighestBitrate().url.toString());
+          urls.add(_normalizeUrl(mp4Streams.withHighestBitrate().url.toString()));
         }
 
-        // Adiciona a de maior bitrate no geral (WebM/Opus)
-        final highestBitrateUrl = audioStreams.withHighestBitrate().url.toString();
+        final highestBitrateUrl = _normalizeUrl(audioStreams.withHighestBitrate().url.toString());
         if (!urls.contains(highestBitrateUrl)) {
           urls.add(highestBitrateUrl);
         }
 
-        // Adiciona os demais streams como fallback
         for (final stream in audioStreams) {
-          final urlStr = stream.url.toString();
+          final urlStr = _normalizeUrl(stream.url.toString());
           if (!urls.contains(urlStr)) {
             urls.add(urlStr);
           }
@@ -53,12 +58,12 @@ class AudioPlayerService {
     return urls;
   }
 
-  /// Inicia a reprodução de uma nova faixa no just_audio/ExoPlayer com User-Agent
+  /// Inicia a reprodução de uma nova faixa no just_audio/ExoPlayer
   Future<void> playTrack(AudioTrackModel track) async {
     List<String> streamUrls = [];
 
     if (track.audioUrl != null && track.audioUrl!.isNotEmpty) {
-      streamUrls.add(track.audioUrl!);
+      streamUrls.add(_normalizeUrl(track.audioUrl!));
     } else {
       streamUrls = await resolveAudioUrls(track.videoId);
     }
@@ -67,7 +72,6 @@ class AudioPlayerService {
       throw Exception('Não foi possível obter a URL de áudio para ${track.title}');
     }
 
-    // Tenta reproduzir as URLs até uma ter sucesso
     Object? lastError;
     for (final url in streamUrls) {
       try {
@@ -78,7 +82,7 @@ class AudioPlayerService {
           ),
         );
         await _audioPlayer.play();
-        return; // Reprodução iniciada com sucesso!
+        return;
       } catch (e) {
         lastError = e;
       }
