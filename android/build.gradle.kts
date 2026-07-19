@@ -17,16 +17,16 @@ subprojects {
 }
 
 subprojects {
-    project.evaluationDependsOn(":app")
+    if (project.name != "app") {
+        project.afterEvaluate {
+            val android = project.extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+            android?.compileSdkVersion(36)
+        }
+    }
 }
 
 subprojects {
-    project.plugins.withId("com.android.library") {
-        (project.extensions.getByName("android") as com.android.build.gradle.BaseExtension).compileSdkVersion(36)
-    }
-    project.plugins.withId("com.android.application") {
-        (project.extensions.getByName("android") as com.android.build.gradle.BaseExtension).compileSdkVersion(36)
-    }
+    project.evaluationDependsOn(":app")
 }
 
 tasks.register<Delete>("clean") {
