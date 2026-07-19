@@ -22,13 +22,16 @@ class HomeScreen extends ConsumerWidget {
   void _onItemTap(BuildContext context, HomeItemModel item) {
     switch (item.type) {
       case HomeItemType.playlist:
-        context.push('/playlist/${item.id}');
+        final targetId = item.playlistId ?? item.id;
+        context.push('/playlist/$targetId');
         break;
       case HomeItemType.album:
-        context.push('/album/${item.id}');
+        final targetId = item.playlistId ?? item.albumId ?? item.id;
+        context.push('/album/$targetId');
         break;
       case HomeItemType.artist:
-        context.push('/artist/${item.id}');
+        final targetId = item.artistId ?? item.id;
+        context.push('/artist/$targetId');
         break;
       case HomeItemType.song:
         // TODO: Iniciar reprodução da música no PlayerController

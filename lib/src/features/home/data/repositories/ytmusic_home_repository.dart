@@ -3,25 +3,26 @@ import '../../domain/models/home_section_model.dart';
 import '../../domain/repositories/home_repository.dart';
 
 /// Implementação do HomeRepository padronizado que consome getHomeSections() da API dart_ytmusic_api,
-/// com thumbnailUrl opcional sem URLs hardcoded e fallback por ícone/inicial.
+/// ajustado para thumbnail correta de playlist/álbum e armazenamento do playlistId para navegação.
 class YtMusicHomeRepository implements HomeRepository {
   final YTMusic _ytMusic;
 
-  YtMusicHomeRepository({YTMusic? ytMusic})
-      : _ytMusic = ytMusic ?? YTMusic();
+  YtMusicHomeRepository({YTMusic? ytMusic}) : _ytMusic = ytMusic ?? YTMusic();
 
   @override
   Future<List<HomeSectionModel>> getHomeSections() async {
     try {
       await _ytMusic.initialize(gl: 'BR', hl: 'pt-BR');
-      
+
       final List<HomeSection> rawSections = await _ytMusic.getHomeSections();
 
       if (rawSections.isNotEmpty) {
         final sections = <HomeSectionModel>[];
 
         for (final rawSection in rawSections) {
-          final String sectionTitle = rawSection.title.isNotEmpty ? rawSection.title : 'Destaques';
+          final String sectionTitle = rawSection.title.isNotEmpty
+              ? rawSection.title
+              : 'Destaques';
           final List<dynamic> rawContents = rawSection.contents;
 
           if (rawContents.isNotEmpty) {
@@ -35,28 +36,48 @@ class YtMusicHomeRepository implements HomeRepository {
                   id: rawItem.videoId,
                   title: rawItem.name,
                   subtitle: rawItem.artist.name,
-                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : null,
+                  thumbnailUrl: rawItem.thumbnails.isNotEmpty
+                      ? (rawItem.thumbnails.length >= 2
+                              ? rawItem.thumbnails[1]
+                              : rawItem.thumbnails.last)
+                          .url
+                      : null,
                   type: HomeItemType.song,
                   artistId: rawItem.artist.artistId,
                   albumId: rawItem.album?.albumId,
-                  duration: rawItem.duration != null ? Duration(seconds: rawItem.duration!) : null,
+                  duration: rawItem.duration != null
+                      ? Duration(seconds: rawItem.duration!)
+                      : null,
                 );
               } else if (rawItem is AlbumDetailed) {
                 item = HomeItemModel(
                   id: rawItem.albumId,
                   title: rawItem.name,
-                  subtitle: rawItem.artist.name.isNotEmpty ? rawItem.artist.name : 'Álbum',
-                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : null,
+                  subtitle: rawItem.artist.name.isNotEmpty
+                      ? rawItem.artist.name
+                      : 'Álbum',
+                  thumbnailUrl: rawItem.thumbnails.isNotEmpty
+                      ? (rawItem.thumbnails.length >= 2
+                              ? rawItem.thumbnails[1]
+                              : rawItem.thumbnails.last)
+                          .url
+                      : null,
                   type: HomeItemType.album,
                   artistId: rawItem.artist.artistId,
                   albumId: rawItem.albumId,
+                  playlistId: rawItem.playlistId,
                 );
               } else if (rawItem is ArtistDetailed) {
                 item = HomeItemModel(
                   id: rawItem.artistId,
                   title: rawItem.name,
                   subtitle: 'Artista',
-                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : null,
+                  thumbnailUrl: rawItem.thumbnails.isNotEmpty
+                      ? (rawItem.thumbnails.length >= 2
+                              ? rawItem.thumbnails[1]
+                              : rawItem.thumbnails.last)
+                          .url
+                      : null,
                   type: HomeItemType.artist,
                   artistId: rawItem.artistId,
                 );
@@ -65,18 +86,36 @@ class YtMusicHomeRepository implements HomeRepository {
                   id: rawItem.playlistId,
                   title: rawItem.name,
                   subtitle: 'Playlist',
-                  thumbnailUrl: rawItem.thumbnails.isNotEmpty ? rawItem.thumbnails.last.url : null,
+                  thumbnailUrl: rawItem.thumbnails.isNotEmpty
+                      ? (rawItem.thumbnails.length >= 2
+                              ? rawItem.thumbnails[1]
+                              : rawItem.thumbnails.last)
+                          .url
+                      : null,
                   type: HomeItemType.playlist,
+                  playlistId: rawItem.playlistId,
                 );
               } else {
                 final dyn = rawItem as dynamic;
-                final String name = dyn.name?.toString() ?? dyn.title?.toString() ?? '';
+                final String name =
+                    dyn.name?.toString() ?? dyn.title?.toString() ?? '';
                 if (name.isNotEmpty) {
-                  final String id = dyn.videoId?.toString() ?? dyn.playlistId?.toString() ?? dyn.albumId?.toString() ?? dyn.artistId?.toString() ?? name;
-                  final String subtitle = dyn.artist?.name?.toString() ?? dyn.subtitle?.toString() ?? 'Música';
+                  final String id = dyn.videoId?.toString() ??
+                      dyn.playlistId?.toString() ??
+                      dyn.albumId?.toString() ??
+                      dyn.artistId?.toString() ??
+                      name;
+                  final String subtitle = dyn.artist?.name?.toString() ??
+                      dyn.subtitle?.toString() ??
+                      'Música';
                   String? thumbnail;
-                  if (dyn.thumbnails != null && dyn.thumbnails is List && (dyn.thumbnails as List).isNotEmpty) {
-                    thumbnail = (dyn.thumbnails as List).last.url?.toString();
+                  if (dyn.thumbnails != null &&
+                      dyn.thumbnails is List &&
+                      (dyn.thumbnails as List).isNotEmpty) {
+                    final list = dyn.thumbnails as List;
+                    thumbnail = (list.length >= 2 ? list[1] : list.last)
+                        .url
+                        ?.toString();
                   }
 
                   HomeItemType itemType = HomeItemType.song;
@@ -94,6 +133,9 @@ class YtMusicHomeRepository implements HomeRepository {
                     subtitle: subtitle,
                     thumbnailUrl: thumbnail,
                     type: itemType,
+                    playlistId: dyn.playlistId?.toString(),
+                    albumId: dyn.albumId?.toString(),
+                    artistId: dyn.artistId?.toString(),
                   );
                 }
               }
@@ -141,6 +183,7 @@ class YtMusicHomeRepository implements HomeRepository {
             title: 'Top Brasil 2026',
             subtitle: 'Playlist Recomendada',
             type: HomeItemType.playlist,
+            playlistId: 'demo_playlist_1',
           ),
           HomeItemModel(
             id: 'demo_2',
@@ -158,12 +201,15 @@ class YtMusicHomeRepository implements HomeRepository {
             title: 'Hits Internacionais',
             subtitle: 'Playlist',
             type: HomeItemType.playlist,
+            playlistId: 'demo_playlist_2',
           ),
           HomeItemModel(
             id: 'demo_album_1',
             title: 'Starboy Deluxe',
             subtitle: 'Álbum',
             type: HomeItemType.album,
+            albumId: 'demo_album_1',
+            playlistId: 'OLAK5uy_demo',
           ),
         ],
       ),

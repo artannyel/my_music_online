@@ -9,6 +9,7 @@ class HomeItemModel {
   final HomeItemType type;
   final String? artistId;
   final String? albumId;
+  final String? playlistId;
   final Duration? duration;
 
   const HomeItemModel({
@@ -19,6 +20,7 @@ class HomeItemModel {
     required this.type,
     this.artistId,
     this.albumId,
+    this.playlistId,
     this.duration,
   });
 
@@ -34,6 +36,7 @@ class HomeItemModel {
       ),
       artistId: json['artistId'] as String?,
       albumId: json['albumId'] as String?,
+      playlistId: json['playlistId'] as String?,
       duration: json['duration'] != null
           ? Duration(seconds: json['duration'] as int)
           : null,
@@ -49,6 +52,7 @@ class HomeItemModel {
       'type': type.name,
       'artistId': artistId,
       'albumId': albumId,
+      'playlistId': playlistId,
       'duration': duration?.inSeconds,
     };
   }
