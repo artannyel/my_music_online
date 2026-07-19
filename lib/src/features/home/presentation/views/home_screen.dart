@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../player/domain/models/player_state_model.dart';
+import '../../../player/presentation/controllers/player_controller.dart';
 import '../../domain/models/home_section_model.dart';
 import '../controllers/home_controller.dart';
 
@@ -19,7 +21,7 @@ class HomeScreen extends ConsumerWidget {
     return 'Boa noite';
   }
 
-  void _onItemTap(BuildContext context, HomeItemModel item) {
+  void _onItemTap(BuildContext context, WidgetRef ref, HomeItemModel item) {
     switch (item.type) {
       case HomeItemType.playlist:
         final targetId = item.playlistId ?? item.id;
@@ -34,7 +36,15 @@ class HomeScreen extends ConsumerWidget {
         context.push('/artist/$targetId');
         break;
       case HomeItemType.song:
-        // TODO: Iniciar reprodução da música no PlayerController
+        ref.read(playerControllerProvider.notifier).playTrack(
+              AudioTrackModel(
+                id: item.id,
+                videoId: item.id,
+                title: item.title,
+                artistName: item.subtitle,
+                thumbnailUrl: item.thumbnailUrl,
+              ),
+            );
         break;
     }
   }
@@ -204,9 +214,9 @@ class HomeScreen extends ConsumerWidget {
                       (context, index) {
                         final section = sections[index];
                         if (index == 0 || section.items.length > 5) {
-                          return _buildHorizontalSection(context, section);
+                          return _buildHorizontalSection(context, ref, section);
                         }
-                        return _buildVerticalSection(context, section);
+                        return _buildVerticalSection(context, ref, section);
                       },
                       childCount: sections.length,
                     ),
@@ -239,7 +249,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   /// Constrói carrossel horizontal com badges de identificação por tipo
-  Widget _buildHorizontalSection(BuildContext context, HomeSectionModel section) {
+  Widget _buildHorizontalSection(BuildContext context, WidgetRef ref, HomeSectionModel section) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -262,7 +272,7 @@ class HomeScreen extends ConsumerWidget {
             itemCount: section.items.length,
             itemBuilder: (context, index) {
               final item = section.items[index];
-              return _buildHorizontalCard(context, item);
+              return _buildHorizontalCard(context, ref, item);
             },
           ),
         ),
@@ -270,11 +280,11 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHorizontalCard(BuildContext context, HomeItemModel item) {
+  Widget _buildHorizontalCard(BuildContext context, WidgetRef ref, HomeItemModel item) {
     final isArtist = item.type == HomeItemType.artist;
 
     return GestureDetector(
-      onTap: () => _onItemTap(context, item),
+      onTap: () => _onItemTap(context, ref, item),
       child: Container(
         width: 150,
         margin: const EdgeInsets.symmetric(horizontal: 6.0),
@@ -346,7 +356,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   /// Constrói lista vertical de seções adicionais
-  Widget _buildVerticalSection(BuildContext context, HomeSectionModel section) {
+  Widget _buildVerticalSection(BuildContext context, WidgetRef ref, HomeSectionModel section) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -370,85 +380,91 @@ class HomeScreen extends ConsumerWidget {
             final item = section.items[index];
             final rankNumber = (index + 1).toString().padLeft(2, '0');
 
-            return InkWell(
-              onTap: () => _onItemTap(context, item),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12.0),
-                padding: const EdgeInsets.all(8.0),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Material(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => _onItemTap(context, ref, item),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.divider, width: 0.5),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      rankNumber,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                  child: Container(
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.divider, width: 0.5),
                     ),
-                    const SizedBox(width: 12),
-                    Stack(
+                    child: Row(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(item.type == HomeItemType.artist ? 25 : 8),
-                          child: SizedBox(
-                            width: 50,
-                            height: 50,
-                            child: _buildImageOrFallback(item, width: 50, height: 50, isCircle: item.type == HomeItemType.artist),
+                        Text(
+                          rankNumber,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
                           ),
                         ),
-                        Positioned(
-                          bottom: 2,
-                          right: 2,
-                          child: Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              color: _getBadgeColor(item.type),
-                              shape: BoxShape.circle,
+                        const SizedBox(width: 12),
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(item.type == HomeItemType.artist ? 25 : 8),
+                              child: SizedBox(
+                                width: 50,
+                                height: 50,
+                                child: _buildImageOrFallback(item, width: 50, height: 50, isCircle: item.type == HomeItemType.artist),
+                              ),
                             ),
-                            child: _getBadgeIcon(item.type),
+                            Positioned(
+                              bottom: 2,
+                              right: 2,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: _getBadgeColor(item.type),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: _getBadgeIcon(item.type),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                item.subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                          onPressed: () {},
                         ),
                       ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            item.subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
-                      onPressed: () {},
-                    ),
-                  ],
+                  ),
                 ),
               ),
             );

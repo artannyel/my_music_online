@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../player/domain/models/player_state_model.dart';
+import '../../../player/presentation/controllers/player_controller.dart';
 import '../../domain/models/playlist_model.dart';
 import '../controllers/playlist_controller.dart';
 
@@ -16,6 +18,20 @@ class PlaylistDetailScreen extends ConsumerWidget {
     super.key,
     required this.playlistId,
   });
+
+  List<AudioTrackModel> _mapTracksToAudioQueue(List<PlaylistTrackModel> tracks) {
+    return tracks.map((t) {
+      return AudioTrackModel(
+        id: t.id,
+        videoId: t.videoId ?? t.id,
+        title: t.title,
+        artistName: t.artistName,
+        albumName: t.albumName,
+        thumbnailUrl: t.thumbnailUrl,
+        duration: t.duration,
+      );
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -237,7 +253,12 @@ class PlaylistDetailScreen extends ConsumerWidget {
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: playlist.tracks.isEmpty ? null : () {},
+                              onPressed: playlist.tracks.isEmpty
+                                  ? null
+                                  : () {
+                                      final queue = _mapTracksToAudioQueue(playlist.tracks);
+                                      ref.read(playerControllerProvider.notifier).playQueue(queue);
+                                    },
                               icon: const Icon(Icons.play_arrow, color: AppColors.textPrimary),
                               label: const Text('Tocar Tudo'),
                               style: ElevatedButton.styleFrom(
@@ -251,7 +272,13 @@ class PlaylistDetailScreen extends ConsumerWidget {
                           ),
                           const SizedBox(width: 12),
                           IconButton(
-                            onPressed: playlist.tracks.isEmpty ? null : () {},
+                            onPressed: playlist.tracks.isEmpty
+                                ? null
+                                : () {
+                                    final queue = _mapTracksToAudioQueue(playlist.tracks);
+                                    ref.read(playerControllerProvider.notifier).toggleShuffle();
+                                    ref.read(playerControllerProvider.notifier).playQueue(queue);
+                                  },
                             icon: const Icon(Icons.shuffle, color: AppColors.textPrimary),
                             style: IconButton.styleFrom(
                               backgroundColor: AppColors.surface,
@@ -347,7 +374,10 @@ class PlaylistDetailScreen extends ConsumerWidget {
                                       },
                                     )
                                   : null,
-                              onTap: () {},
+                              onTap: () {
+                                final queue = _mapTracksToAudioQueue(playlist.tracks);
+                                ref.read(playerControllerProvider.notifier).playQueue(queue, initialIndex: index);
+                              },
                             ),
                           ),
                         ),
