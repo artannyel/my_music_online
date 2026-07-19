@@ -142,7 +142,7 @@ class FirestorePlaylistRepository implements PlaylistRepository {
 
       await docRef.update({
         'tracks': updatedTracks.map((t) => t.toJson()).toList(),
-        if (coverUrl != null) 'coverUrl': coverUrl,
+        'coverUrl': ?coverUrl,
       });
     }
   }

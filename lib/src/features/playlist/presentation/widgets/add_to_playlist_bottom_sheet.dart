@@ -106,7 +106,7 @@ class AddToPlaylistBottomSheet extends ConsumerWidget {
     }
 
     // Se o usuário estiver autenticado
-    final playlistsAsync = ref.watch(userPlaylistsStreamProvider(user.id));
+    final playlistsAsync = ref.watch(userPlaylistsStreamProvider(user.uid));
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -138,7 +138,7 @@ class AddToPlaylistBottomSheet extends ConsumerWidget {
               ),
               TextButton.icon(
                 onPressed: () async {
-                  final newPlaylist = await CreatePlaylistDialog.show(context, userId: user.id);
+                  final newPlaylist = await CreatePlaylistDialog.show(context, userId: user.uid);
                   if (newPlaylist != null && context.mounted) {
                     final success = await ref
                         .read(playlistMutationsProvider.notifier)

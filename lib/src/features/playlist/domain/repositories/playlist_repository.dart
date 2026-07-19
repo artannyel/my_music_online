@@ -1,4 +1,4 @@
-import 'models/playlist_model.dart';
+import '../models/playlist_model.dart';
 
 /// Contrato para operações com Playlists (Firestore & YTMusic).
 abstract class PlaylistRepository {
