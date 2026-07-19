@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../data/services/audio_player_service.dart';
@@ -64,7 +65,8 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
     try {
       await _service.playTrack(track);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[PlayerController] Erro capturado em playTrack: $e\n$st');
       state = state.copyWith(isBuffering: false, isPlaying: false);
     }
   }
@@ -86,7 +88,8 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
     try {
       await _service.playTrack(targetTrack);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[PlayerController] Erro capturado em playQueue: $e\n$st');
       state = state.copyWith(isBuffering: false, isPlaying: false);
     }
   }
@@ -131,7 +134,8 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
     try {
       await _service.playTrack(nextTrackItem);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[PlayerController] Erro em nextTrack: $e\n$st');
       state = state.copyWith(isBuffering: false, isPlaying: false);
     }
   }
@@ -160,7 +164,8 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
     try {
       await _service.playTrack(prevTrackItem);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[PlayerController] Erro em previousTrack: $e\n$st');
       state = state.copyWith(isBuffering: false, isPlaying: false);
     }
   }
