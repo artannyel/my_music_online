@@ -21,12 +21,12 @@ subprojects {
 
 subprojects {
     plugins.withId("com.android.library") {
-        val android = extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)
-        android?.compileSdk = 36
+        val android = extensions.getByType(com.android.build.api.dsl.LibraryExtension::class.java)
+        android.compileSdk = 36
     }
     plugins.withId("com.android.application") {
-        val android = extensions.findByType(com.android.build.gradle.AppExtension::class.java)
-        android?.compileSdk = 36
+        val android = extensions.getByType(com.android.build.api.dsl.ApplicationExtension::class.java)
+        android.compileSdk = 36
     }
 }
 
