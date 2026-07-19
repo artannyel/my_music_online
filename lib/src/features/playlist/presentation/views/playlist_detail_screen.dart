@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../domain/models/playlist_model.dart';
 import '../controllers/playlist_controller.dart';
 
-/// PlaylistDetailScreen exibe o cabeçalho expandido da playlist e suas músicas.
+/// PlaylistDetailScreen exibe o cabeçalho expandido da playlist, suas músicas ao vivo (YTMusic)
+/// ou armazenadas (Firestore), permitindo salvar na biblioteca ou criar uma cópia customizada.
 class PlaylistDetailScreen extends ConsumerWidget {
   final String playlistId;
 
@@ -28,12 +30,22 @@ class PlaylistDetailScreen extends ConsumerWidget {
             return Scaffold(
               appBar: AppBar(),
               body: const Center(
-                child: Text('Playlist não encontrada.', style: TextStyle(color: AppColors.textSecondary)),
+                child: Text(
+                  'Playlist não encontrada ou indisponível.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
               ),
             );
           }
 
-          final isOwner = currentUser != null && playlist.userId == currentUser.uid;
+          final isCustom = playlist.type == PlaylistType.custom;
+          final isOwner = currentUser != null && isCustom && playlist.userId == currentUser.uid;
+
+          // Status se a playlist pública do YT está salva na biblioteca do usuário
+          final isSavedAsync = currentUser != null
+              ? ref.watch(isPlaylistSavedProvider((userId: currentUser.uid, playlistId: playlist.id)))
+              : const AsyncValue.data(false);
+          final isSaved = isSavedAsync.value ?? false;
 
           return CustomScrollView(
             slivers: [
@@ -53,6 +65,87 @@ class PlaylistDetailScreen extends ConsumerWidget {
                   ),
                   onPressed: () => context.pop(),
                 ),
+                actions: [
+                  if (currentUser != null) ...[
+                    // Botão Salvar / Remover da Biblioteca (para playlists públicas do YouTube)
+                    if (!isCustom)
+                      IconButton(
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Colors.black45,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isSaved ? Icons.favorite : Icons.favorite_border,
+                            color: isSaved ? AppColors.primary : AppColors.textPrimary,
+                          ),
+                        ),
+                        onPressed: () async {
+                          final notifier = ref.read(playlistMutationsProvider.notifier);
+                          if (isSaved) {
+                            await notifier.unsaveYtPlaylistFromLibrary(
+                              userId: currentUser.uid,
+                              playlistId: playlist.id,
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Playlist removida da sua biblioteca.'),
+                                  backgroundColor: AppColors.surface,
+                                ),
+                              );
+                            }
+                          } else {
+                            await notifier.saveYtPlaylistToLibrary(
+                              userId: currentUser.uid,
+                              ytPlaylist: playlist,
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Playlist salva na sua biblioteca!'),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                            }
+                          }
+                          ref.invalidate(isPlaylistSavedProvider);
+                          ref.invalidate(userPlaylistsStreamProvider(currentUser.uid));
+                        },
+                      ),
+                    // Botão Duplicar / Criar Cópia Editável
+                    IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Colors.black45,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.copy, color: AppColors.textPrimary),
+                      ),
+                      tooltip: 'Criar cópia editável',
+                      onPressed: () async {
+                        final customCopy = await ref
+                            .read(playlistMutationsProvider.notifier)
+                            .duplicatePlaylistAsCustom(
+                              userId: currentUser.uid,
+                              sourcePlaylist: playlist,
+                            );
+
+                        if (context.mounted && customCopy != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Cópia editável "${customCopy.title}" criada!'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                          context.push('/playlist/${customCopy.id}');
+                        }
+                      },
+                    ),
+                  ],
+                ],
                 flexibleSpace: FlexibleSpaceBar(
                   background: Stack(
                     fit: StackFit.expand,
@@ -95,6 +188,26 @@ class PlaylistDetailScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isCustom ? AppColors.primary : AppColors.secondary,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              isCustom ? 'Sua Playlist' : 'YouTube Music',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
                       Text(
                         playlist.title,
                         style: const TextStyle(
@@ -223,13 +336,14 @@ class PlaylistDetailScreen extends ConsumerWidget {
                           trailing: isOwner
                               ? IconButton(
                                   icon: const Icon(Icons.close, color: AppColors.textMuted, size: 20),
-                                  onPressed: () {
-                                    ref
+                                  onPressed: () async {
+                                    await ref
                                         .read(playlistMutationsProvider.notifier)
                                         .removeTrackFromPlaylist(
                                           playlistId: playlist.id,
                                           trackId: track.id,
                                         );
+                                    ref.invalidate(playlistDetailsProvider(playlistId));
                                   },
                                 )
                               : null,

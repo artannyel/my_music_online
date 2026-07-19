@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../domain/models/playlist_model.dart';
 import '../controllers/playlist_controller.dart';
 import '../widgets/create_playlist_dialog.dart';
 
@@ -123,7 +124,7 @@ class PlaylistsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Você ainda não criou nenhuma playlist.',
+                  'Você ainda não criou ou salvou nenhuma playlist.',
                   style: TextStyle(
                     fontSize: 16,
                     color: AppColors.textSecondary,
@@ -152,6 +153,7 @@ class PlaylistsScreen extends ConsumerWidget {
           itemCount: playlists.length,
           itemBuilder: (context, index) {
             final playlist = playlists[index];
+            final isCustom = playlist.type == PlaylistType.custom;
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12.0),
@@ -182,16 +184,40 @@ class PlaylistsScreen extends ConsumerWidget {
                           ),
                   ),
                 ),
-                title: Text(
-                  playlist.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        playlist.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isCustom ? AppColors.primary : AppColors.secondary,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        isCustom ? 'Sua' : 'YT',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 subtitle: Text(
-                  '${playlist.tracks.length} faixas ${playlist.description != null ? '• ${playlist.description}' : ''}',
+                  '${isCustom ? '${playlist.tracks.length} faixas' : 'Salva do YouTube'} ${playlist.description != null ? '• ${playlist.description}' : ''}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: AppColors.textSecondary),
@@ -203,8 +229,8 @@ class PlaylistsScreen extends ConsumerWidget {
                       context: context,
                       builder: (context) => AlertDialog(
                         backgroundColor: AppColors.surface,
-                        title: const Text('Excluir Playlist', style: TextStyle(color: AppColors.textPrimary)),
-                        content: Text('Tem certeza que deseja excluir "${playlist.title}"?', style: const TextStyle(color: AppColors.textSecondary)),
+                        title: const Text('Remover Playlist', style: TextStyle(color: AppColors.textPrimary)),
+                        content: Text('Tem certeza que deseja remover "${playlist.title}" da sua biblioteca?', style: const TextStyle(color: AppColors.textSecondary)),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, false),
@@ -212,7 +238,7 @@ class PlaylistsScreen extends ConsumerWidget {
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Excluir', style: TextStyle(color: AppColors.error)),
+                            child: const Text('Remover', style: TextStyle(color: AppColors.error)),
                           ),
                         ],
                       ),
@@ -224,7 +250,8 @@ class PlaylistsScreen extends ConsumerWidget {
                   },
                 ),
                 onTap: () {
-                  context.push('/playlist/${playlist.id}');
+                  final targetId = playlist.originalYtPlaylistId ?? playlist.id;
+                  context.push('/playlist/$targetId');
                 },
               ),
             );
