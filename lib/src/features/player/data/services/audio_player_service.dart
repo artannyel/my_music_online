@@ -1,17 +1,57 @@
+// ignore_for_file: experimental_member_use
+
 import 'package:just_audio/just_audio.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../../domain/models/player_state_model.dart';
 
-/// Serviço encapsulado do Player de Áudio que utiliza YoutubeExplode para
-/// extração de URLs de stream e just_audio com suporte a tráfego HTTPS/Cleartext no Android.
+/// Fonte de áudio customizada que utiliza o cliente Dart do YoutubeExplode para
+/// transmitir bytes diretamente ao just_audio/ExoPlayer sem erros HTTP 403 Forbidden.
+class YoutubeAudioSource extends StreamAudioSource {
+  final String videoId;
+  final YoutubeExplode ytExplode;
+
+  YoutubeAudioSource({
+    required this.videoId,
+    required this.ytExplode,
+  });
+
+  @override
+  Future<StreamAudioResponse> request([int? start, int? end]) async {
+    final manifest = await ytExplode.videos.streamsClient.getManifest(videoId);
+    final audioStreams = manifest.audioOnly;
+
+    if (audioStreams.isEmpty) {
+      throw Exception('Nenhum stream de áudio disponível para o videoId $videoId');
+    }
+
+    // Prioriza container MP4 para compatibilidade com o ExoPlayer
+    final mp4Streams = audioStreams.where((s) => s.container.name == 'mp4').toList();
+    final audioStreamInfo = mp4Streams.isNotEmpty
+        ? mp4Streams.withHighestBitrate()
+        : audioStreams.withHighestBitrate();
+
+    final totalBytes = audioStreamInfo.size.totalBytes;
+    final stream = ytExplode.videos.streamsClient.get(audioStreamInfo);
+
+    final contentType = audioStreamInfo.container.name == 'mp4'
+        ? 'audio/mp4'
+        : 'audio/webm';
+
+    return StreamAudioResponse(
+      sourceLength: totalBytes,
+      contentLength: (end ?? totalBytes) - (start ?? 0),
+      offset: start ?? 0,
+      stream: stream,
+      contentType: contentType,
+    );
+  }
+}
+
+/// Serviço encapsulado do Player de Áudio que gerencia a reprodução usando just_audio
+/// e a transmissão garantida de faixas via YoutubeAudioSource.
 class AudioPlayerService {
   final AudioPlayer _audioPlayer;
   final YoutubeExplode _ytExplode;
-
-  static const Map<String, String> _defaultHeaders = {
-    'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  };
 
   AudioPlayerService({
     AudioPlayer? audioPlayer,
@@ -21,74 +61,19 @@ class AudioPlayerService {
 
   AudioPlayer get player => _audioPlayer;
 
-  /// Formata a URL garantindo o protocolo HTTPS quando aplicável
-  String _normalizeUrl(String rawUrl) {
-    if (rawUrl.startsWith('http://') && !rawUrl.contains('127.0.0.1')) {
-      return rawUrl.replaceFirst('http://', 'https://');
-    }
-    return rawUrl;
-  }
-
-  /// Resolve a lista de URLs de stream de áudio (priorizando MP4 e maior bitrate)
-  Future<List<String>> resolveAudioUrls(String videoId) async {
-    final urls = <String>[];
-    try {
-      final manifest = await _ytExplode.videos.streamsClient.getManifest(videoId);
-      final audioStreams = manifest.audioOnly;
-
-      if (audioStreams.isNotEmpty) {
-        final mp4Streams = audioStreams.where((s) => s.container.name == 'mp4').toList();
-        if (mp4Streams.isNotEmpty) {
-          urls.add(_normalizeUrl(mp4Streams.withHighestBitrate().url.toString()));
-        }
-
-        final highestBitrateUrl = _normalizeUrl(audioStreams.withHighestBitrate().url.toString());
-        if (!urls.contains(highestBitrateUrl)) {
-          urls.add(highestBitrateUrl);
-        }
-
-        for (final stream in audioStreams) {
-          final urlStr = _normalizeUrl(stream.url.toString());
-          if (!urls.contains(urlStr)) {
-            urls.add(urlStr);
-          }
-        }
-      }
-    } catch (_) {}
-    return urls;
-  }
-
-  /// Inicia a reprodução de uma nova faixa no just_audio/ExoPlayer
+  /// Inicia a reprodução de uma nova faixa via YoutubeAudioSource
   Future<void> playTrack(AudioTrackModel track) async {
-    List<String> streamUrls = [];
+    try {
+      final audioSource = YoutubeAudioSource(
+        videoId: track.videoId,
+        ytExplode: _ytExplode,
+      );
 
-    if (track.audioUrl != null && track.audioUrl!.isNotEmpty) {
-      streamUrls.add(_normalizeUrl(track.audioUrl!));
-    } else {
-      streamUrls = await resolveAudioUrls(track.videoId);
+      await _audioPlayer.setAudioSource(audioSource);
+      await _audioPlayer.play();
+    } catch (e) {
+      throw Exception('Falha ao reproduzir a faixa ${track.title}: $e');
     }
-
-    if (streamUrls.isEmpty) {
-      throw Exception('Não foi possível obter a URL de áudio para ${track.title}');
-    }
-
-    Object? lastError;
-    for (final url in streamUrls) {
-      try {
-        await _audioPlayer.setAudioSource(
-          AudioSource.uri(
-            Uri.parse(url),
-            headers: _defaultHeaders,
-          ),
-        );
-        await _audioPlayer.play();
-        return;
-      } catch (e) {
-        lastError = e;
-      }
-    }
-
-    throw Exception('Falha ao tocar áudio para ${track.title}: $lastError');
   }
 
   Future<void> play() async => await _audioPlayer.play();
