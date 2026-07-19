@@ -1,50 +1,34 @@
 // ignore_for_file: experimental_member_use
 
+import 'package:dart_ytmusic_api/dart_ytmusic_api.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../../domain/models/player_state_model.dart';
 
-/// Fonte de áudio customizada que gerencia requisições de intervalo (Range HTTP Headers)
-/// transmitindo bytes diretamente ao ExoPlayer sem erros de timeout, socket closed ou HTTP 403.
+/// Fonte de áudio customizada que recebe o AudioOnlyStreamInfo pré-resolvido.
+/// Executa APENAS as requisições de intervalo (Range Requests) durante o buffer do ExoPlayer.
 class YoutubeAudioSource extends StreamAudioSource {
-  final String videoId;
-  final YoutubeExplode ytExplode;
+  final AudioOnlyStreamInfo streamInfo;
   final http.Client _client = http.Client();
 
-  YoutubeAudioSource({
-    required this.videoId,
-    required this.ytExplode,
-  });
+  YoutubeAudioSource(this.streamInfo);
 
   @override
   Future<StreamAudioResponse> request([int? start, int? end]) async {
-    final manifest = await ytExplode.videos.streamsClient.getManifest(videoId);
-    final audioStreams = manifest.audioOnly;
-
-    if (audioStreams.isEmpty) {
-      throw Exception('Nenhum stream de áudio disponível para o videoId $videoId');
-    }
-
-    // Prioriza container MP4 para compatibilidade total com ExoPlayer no Android
-    final mp4Streams = audioStreams.where((s) => s.container.name == 'mp4').toList();
-    final audioStreamInfo = mp4Streams.isNotEmpty
-        ? mp4Streams.withHighestBitrate()
-        : audioStreams.withHighestBitrate();
-
-    final totalBytes = audioStreamInfo.size.totalBytes;
+    final totalBytes = streamInfo.size.totalBytes;
     final rangeStart = start ?? 0;
     final rangeEnd = end ?? (totalBytes - 1);
 
-    // Faz a requisição HTTP Range com o User-Agent correto via cliente Dart
-    final request = http.Request('GET', audioStreamInfo.url);
+    // Faz a requisição de bytes diretamente para a URL do stream pré-resolvido
+    final request = http.Request('GET', streamInfo.url);
     request.headers['User-Agent'] =
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     request.headers['Range'] = 'bytes=$rangeStart-$rangeEnd';
 
     final response = await _client.send(request);
 
-    final contentType = audioStreamInfo.container.name == 'mp4'
+    final contentType = streamInfo.container.name == 'mp4'
         ? 'audio/mp4'
         : 'audio/webm';
 
@@ -58,32 +42,103 @@ class YoutubeAudioSource extends StreamAudioSource {
   }
 }
 
-/// Serviço encapsulado do Player de Áudio que gerencia a reprodução usando just_audio
-/// e a transmissão garantida de faixas via YoutubeAudioSource com suporte a Range requests.
+/// Serviço encapsulado do Player de Áudio que gerencia a reprodução usando just_audio,
+/// garantindo resolução ÚNICA por música para evitar limites de requisição (Rate Limit / RequestLimitExceededException).
 class AudioPlayerService {
   final AudioPlayer _audioPlayer;
   final YoutubeExplode _ytExplode;
+  final YTMusic _ytMusic;
+
+  static const Map<String, String> _defaultHeaders = {
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  };
 
   AudioPlayerService({
     AudioPlayer? audioPlayer,
     YoutubeExplode? ytExplode,
+    YTMusic? ytMusic,
   })  : _audioPlayer = audioPlayer ?? AudioPlayer(),
-        _ytExplode = ytExplode ?? YoutubeExplode();
+        _ytExplode = ytExplode ?? YoutubeExplode(),
+        _ytMusic = ytMusic ?? YTMusic();
 
   AudioPlayer get player => _audioPlayer;
 
-  /// Inicia a reprodução de uma nova faixa via YoutubeAudioSource
-  Future<void> playTrack(AudioTrackModel track) async {
+  /// Método de fallback caso o YoutubeExplode sofra algum erro ou bloqueio
+  Future<String?> _resolveFallbackAudioUrl(String videoId) async {
     try {
-      final audioSource = YoutubeAudioSource(
-        videoId: track.videoId,
-        ytExplode: _ytExplode,
-      );
+      await _ytMusic.initialize(gl: 'BR', hl: 'pt-BR');
+      final songFull = await _ytMusic.getSong(videoId);
 
-      await _audioPlayer.setAudioSource(audioSource);
+      final allFormats = [
+        ...songFull.adaptiveFormats,
+        ...songFull.formats,
+      ];
+
+      final audioFormats = allFormats.where((f) {
+        final mime = f['mimeType']?.toString().toLowerCase() ?? '';
+        return mime.contains('audio');
+      }).toList();
+
+      if (audioFormats.isNotEmpty) {
+        audioFormats.sort((a, b) {
+          final bitrateA = (a['bitrate'] as num?) ?? 0;
+          final bitrateB = (b['bitrate'] as num?) ?? 0;
+          return bitrateB.compareTo(bitrateA);
+        });
+
+        for (final format in audioFormats) {
+          String? url = format['url']?.toString();
+          if (url == null || url.isEmpty) {
+            final cipher = format['signatureCipher']?.toString() ?? format['cipher']?.toString();
+            if (cipher != null && cipher.isNotEmpty) {
+              final queryParams = Uri.splitQueryString(cipher);
+              url = queryParams['url'];
+            }
+          }
+          if (url != null && url.isNotEmpty) {
+            return url;
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Inicia a reprodução de uma nova faixa no just_audio
+  Future<void> playTrack(AudioTrackModel track) async {
+    // 1. Tenta obter o manifesto do YoutubeExplode apenas UMA vez para esta música
+    try {
+      final manifest = await _ytExplode.videos.streamsClient.getManifest(track.videoId);
+      final audioStreams = manifest.audioOnly;
+
+      if (audioStreams.isNotEmpty) {
+        final mp4Streams = audioStreams.where((s) => s.container.name == 'mp4').toList();
+        final streamInfo = mp4Streams.isNotEmpty
+            ? mp4Streams.withHighestBitrate()
+            : audioStreams.withHighestBitrate();
+
+        final audioSource = YoutubeAudioSource(streamInfo);
+        await _audioPlayer.setAudioSource(audioSource);
+        await _audioPlayer.play();
+        return;
+      }
+    } catch (_) {
+      // Se houver erro de bloqueio/rate-limit no YoutubeExplode, cai no fallback de URL direta
+    }
+
+    // 2. Fallback: Obtém URL via YTMusic e toca via AudioSource.uri com headers
+    final fallbackUrl = await _resolveFallbackAudioUrl(track.videoId);
+    if (fallbackUrl != null && fallbackUrl.isNotEmpty) {
+      await _audioPlayer.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(fallbackUrl),
+          headers: _defaultHeaders,
+        ),
+      );
       await _audioPlayer.play();
-    } catch (e) {
-      throw Exception('Falha ao reproduzir a faixa ${track.title}: $e');
+    } else {
+      throw Exception('Não foi possível carregar a faixa ${track.title}');
     }
   }
 
