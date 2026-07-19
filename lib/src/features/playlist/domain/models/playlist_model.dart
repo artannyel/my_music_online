@@ -1,3 +1,5 @@
+enum PlaylistType { youtube, custom }
+
 /// Model que representa uma faixa dentro de uma playlist.
 class PlaylistTrackModel {
   final String id;
@@ -45,7 +47,7 @@ class PlaylistTrackModel {
   }
 }
 
-/// Model principal de Playlist (pública do YTMusic ou criada pelo usuário no Firebase).
+/// Model principal de Playlist (pública do YTMusic ou salva/criada pelo usuário no Firestore).
 class PlaylistModel {
   final String id;
   final String? userId;
@@ -55,6 +57,8 @@ class PlaylistModel {
   final List<PlaylistTrackModel> tracks;
   final DateTime createdAt;
   final bool isPublic;
+  final PlaylistType type;
+  final String? originalYtPlaylistId;
 
   const PlaylistModel({
     required this.id,
@@ -65,6 +69,8 @@ class PlaylistModel {
     this.tracks = const [],
     required this.createdAt,
     this.isPublic = true,
+    this.type = PlaylistType.custom,
+    this.originalYtPlaylistId,
   });
 
   factory PlaylistModel.fromJson(Map<String, dynamic> json) {
@@ -82,6 +88,11 @@ class PlaylistModel {
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
       isPublic: json['isPublic'] as bool? ?? true,
+      type: PlaylistType.values.firstWhere(
+        (e) => e.name == json['type'],
+        orElse: () => PlaylistType.custom,
+      ),
+      originalYtPlaylistId: json['originalYtPlaylistId'] as String?,
     );
   }
 
@@ -95,6 +106,8 @@ class PlaylistModel {
       'tracks': tracks.map((t) => t.toJson()).toList(),
       'createdAt': createdAt.toIso8601String(),
       'isPublic': isPublic,
+      'type': type.name,
+      'originalYtPlaylistId': originalYtPlaylistId,
     };
   }
 
@@ -107,6 +120,8 @@ class PlaylistModel {
     List<PlaylistTrackModel>? tracks,
     DateTime? createdAt,
     bool? isPublic,
+    PlaylistType? type,
+    String? originalYtPlaylistId,
   }) {
     return PlaylistModel(
       id: id ?? this.id,
@@ -117,6 +132,8 @@ class PlaylistModel {
       tracks: tracks ?? this.tracks,
       createdAt: createdAt ?? this.createdAt,
       isPublic: isPublic ?? this.isPublic,
+      type: type ?? this.type,
+      originalYtPlaylistId: originalYtPlaylistId ?? this.originalYtPlaylistId,
     );
   }
 }

@@ -15,13 +15,37 @@ abstract class PlaylistRepository {
     String? description,
   });
 
-  /// Adiciona uma faixa a uma playlist existente no Firestore.
+  /// Salva uma referência de playlist do YouTube na biblioteca do usuário no Firestore.
+  Future<void> saveYtPlaylistToLibrary({
+    required String userId,
+    required PlaylistModel ytPlaylist,
+  });
+
+  /// Remove uma referência de playlist do YouTube da biblioteca do usuário.
+  Future<void> unsaveYtPlaylistFromLibrary({
+    required String userId,
+    required String playlistId,
+  });
+
+  /// Duplica qualquer playlist (do YouTube ou de outro usuário) como uma cópia editável personalizada no Firestore.
+  Future<PlaylistModel> duplicatePlaylistAsCustom({
+    required String userId,
+    required PlaylistModel sourcePlaylist,
+  });
+
+  /// Verifica se uma playlist do YouTube está salva na biblioteca do usuário.
+  Future<bool> isPlaylistSaved({
+    required String userId,
+    required String playlistId,
+  });
+
+  /// Adiciona uma faixa a uma playlist personalizada do usuário no Firestore.
   Future<void> addTrackToPlaylist({
     required String playlistId,
     required PlaylistTrackModel track,
   });
 
-  /// Remove uma faixa de uma playlist no Firestore.
+  /// Remove uma faixa de uma playlist personalizada no Firestore.
   Future<void> removeTrackFromPlaylist({
     required String playlistId,
     required String trackId,
