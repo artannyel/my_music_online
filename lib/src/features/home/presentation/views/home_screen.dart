@@ -135,7 +135,7 @@ class HomeScreen extends ConsumerWidget {
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
                         final section = sections[index];
-                        if (index == 0) {
+                        if (index == 0 || section.items.length > 5) {
                           return _buildHorizontalSection(context, section);
                         }
                         return _buildVerticalSection(context, section);
