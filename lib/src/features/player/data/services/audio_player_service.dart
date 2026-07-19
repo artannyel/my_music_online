@@ -1,73 +1,32 @@
-import 'package:dart_ytmusic_api/dart_ytmusic_api.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../../domain/models/player_state_model.dart';
 
-/// Serviço encapsulado do Player de Áudio combinando just_audio com resolução
-/// de URLs de stream de áudio via dart_ytmusic_api e cabeçalhos User-Agent adequados.
+/// Serviço encapsulado do Player de Áudio que utiliza YoutubeExplode para
+/// extração garantida de URLs de stream e just_audio / ExoPlayer para reprodução.
 class AudioPlayerService {
   final AudioPlayer _audioPlayer;
-  final YTMusic _ytMusic;
+  final YoutubeExplode _ytExplode;
 
   AudioPlayerService({
     AudioPlayer? audioPlayer,
-    YTMusic? ytMusic,
+    YoutubeExplode? ytExplode,
   })  : _audioPlayer = audioPlayer ?? AudioPlayer(),
-        _ytMusic = ytMusic ?? YTMusic();
+        _ytExplode = ytExplode ?? YoutubeExplode();
 
   AudioPlayer get player => _audioPlayer;
 
-  /// Resolve a URL de stream de áudio direta de uma faixa do YouTube Music
+  /// Resolve a URL de stream de áudio direta de alta qualidade de uma faixa do YouTube
   Future<String?> resolveAudioUrl(String videoId) async {
     try {
-      await _ytMusic.initialize(gl: 'BR', hl: 'pt-BR');
-      final songFull = await _ytMusic.getSong(videoId);
+      final manifest = await _ytExplode.videos.streamsClient.getManifest(videoId);
+      final audioStreams = manifest.audioOnly;
 
-      List<dynamic> allFormats = [
-        ...songFull.adaptiveFormats,
-        ...songFull.formats,
-      ];
-
-      final audioFormats = allFormats.where((f) {
-        final mime = f['mimeType']?.toString().toLowerCase() ?? '';
-        return mime.contains('audio');
-      }).toList();
-
-      if (audioFormats.isNotEmpty) {
-        // Ordena por maior bitrate
-        audioFormats.sort((a, b) {
-          final bitrateA = (a['bitrate'] as num?) ?? 0;
-          final bitrateB = (b['bitrate'] as num?) ?? 0;
-          return bitrateB.compareTo(bitrateA);
-        });
-
-        for (final format in audioFormats) {
-          String? url = format['url']?.toString();
-
-          // Tenta extrair a URL se o formato usar signatureCipher / cipher
-          if (url == null || url.isEmpty) {
-            final cipher = format['signatureCipher']?.toString() ??
-                format['cipher']?.toString();
-            if (cipher != null && cipher.isNotEmpty) {
-              final queryParams = Uri.splitQueryString(cipher);
-              url = queryParams['url'];
-            }
-          }
-
-          if (url != null && url.isNotEmpty) {
-            return url;
-          }
-        }
-      }
-
-      // Se nenhum formato de áudio exclusivo for encontrado, tenta qualquer formato com URL
-      for (final format in allFormats) {
-        final String? url = format['url']?.toString();
-        if (url != null && url.isNotEmpty) {
-          return url;
-        }
+      if (audioStreams.isNotEmpty) {
+        final bestAudio = audioStreams.withHighestBitrate();
+        return bestAudio.url.toString();
       }
     } catch (_) {}
-
     return null;
   }
 
@@ -80,14 +39,9 @@ class AudioPlayerService {
     }
 
     if (streamUrl != null && streamUrl.isNotEmpty) {
-      // Configura o AudioSource com o User-Agent do YouTube para evitar HTTP 403 Forbidden no ExoPlayer
       await _audioPlayer.setAudioSource(
         AudioSource.uri(
           Uri.parse(streamUrl),
-          headers: const {
-            'User-Agent':
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-          },
         ),
       );
       await _audioPlayer.play();
@@ -120,6 +74,7 @@ class AudioPlayerService {
   }
 
   void dispose() {
+    _ytExplode.close();
     _audioPlayer.dispose();
   }
 }
