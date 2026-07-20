@@ -34,3 +34,5 @@ lib/src/features/player/
 - [ ] [Task 3: Presentation - PlayerController em Riverpod](./task-3-player-riverpod-controller.md)
 - [ ] [Task 4: Presentation - Componente MiniPlayer (UI Bar Persistente)](./task-4-mini-player-widget-ui.md)
 - [ ] [Task 5: Presentation - Tela FullPlayerView Estilo YouTube Music (Stitch)](./task-5-full-player-screen-ui.md)
+- [ ] [Task 6: Feature - Modo Rádio Automix / Autoplay Infinito (getUpNexts)](./task-6-radio-automix.md)
+
