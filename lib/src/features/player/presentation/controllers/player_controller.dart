@@ -72,8 +72,12 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     });
   }
 
+  final Set<String> _fetchedRadioVideoIds = {};
+
   /// Toca uma faixa específica com o modo Rádio Automix ativado (filas infinitas)
   Future<void> playTrackWithRadio(AudioTrackModel track) async {
+    _fetchedRadioVideoIds.clear();
+
     state = state.copyWith(
       currentTrack: track,
       queue: [track],
@@ -85,8 +89,9 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
     try {
       _updateNotification(track);
-      await _service.playTrack(track);
+      // Dispara a busca das sugestões do Rádio em paralelo no segundo 0
       _fetchAndAppendUpNexts(track.videoId);
+      await _service.playTrack(track);
     } catch (e, st) {
       debugPrint('[PlayerController] Erro capturado em playTrackWithRadio: $e\n$st');
       state = state.copyWith(isBuffering: false, isPlaying: false);
@@ -170,6 +175,9 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
   /// Busca em segundo plano o Rádio Automix (getUpNexts) e anexa à fila de reprodução
   Future<void> _fetchAndAppendUpNexts(String videoId) async {
+    if (videoId.isEmpty || _fetchedRadioVideoIds.contains(videoId)) return;
+    _fetchedRadioVideoIds.add(videoId);
+
     if (_activeRadioFetch != null) {
       await _activeRadioFetch;
     }
@@ -203,6 +211,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       }
     } catch (e, st) {
       debugPrint('[PlayerController] Erro ao buscar Rádio Automix (getUpNexts): $e\n$st');
+      _fetchedRadioVideoIds.remove(videoId);
     } finally {
       if (!completer.isCompleted) {
         completer.complete();
