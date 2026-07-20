@@ -29,10 +29,10 @@ lib/src/features/player/
 ```
 
 ## 4. Divisão de Tasks
-- [ ] [Task 1: Domain - Modelos SongModel, PlayerStateModel & Interface](./task-1-domain-models.md)
-- [ ] [Task 2: Data - Repositório JustAudioPlayerRepository & Stream Extract](./task-2-just-audio-repository.md)
-- [ ] [Task 3: Presentation - PlayerController em Riverpod](./task-3-player-riverpod-controller.md)
-- [ ] [Task 4: Presentation - Componente MiniPlayer (UI Bar Persistente)](./task-4-mini-player-widget-ui.md)
-- [ ] [Task 5: Presentation - Tela FullPlayerView Estilo YouTube Music (Stitch)](./task-5-full-player-screen-ui.md)
+- [x] [Task 1: Domain - Modelos SongModel, PlayerStateModel & Interface](./task-1-domain-models.md)
+- [x] [Task 2: Data - Repositório JustAudioPlayerRepository & Stream Extract](./task-2-just-audio-repository.md)
+- [x] [Task 3: Presentation - PlayerController em Riverpod](./task-3-player-riverpod-controller.md)
+- [x] [Task 4: Presentation - Componente MiniPlayer (UI Bar Persistente)](./task-4-mini-player-widget-ui.md)
+- [x] [Task 5: Presentation - Tela FullPlayerView Estilo YouTube Music (Stitch)](./task-5-full-player-screen-ui.md)
 - [ ] [Task 6: Feature - Modo Rádio Automix / Autoplay Infinito (getUpNexts)](./task-6-radio-automix.md)
 

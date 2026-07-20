@@ -25,7 +25,7 @@ lib/src/core/
 ```
 
 ## 4. Divisão de Tasks
-- [ ] [Task 1: Configuração do `pubspec.yaml`](./task-1-pubspec-dependencies.md)
-- [ ] [Task 2: Design System & Tema Escuro (Stitch)](./task-2-design-system-and-dark-theme.md)
-- [ ] [Task 3: GoRouter & ShellRoute (MiniPlayer Global)](./task-3-gorouter-and-shellroute.md)
-- [ ] [Task 4: Inicialização de Serviços Globais (Firebase & Audio)](./task-4-firebase-and-services-init.md)
+- [x] [Task 1: Configuração do `pubspec.yaml`](./task-1-pubspec-dependencies.md)
+- [x] [Task 2: Design System & Tema Escuro (Stitch)](./task-2-design-system-and-dark-theme.md)
+- [x] [Task 3: GoRouter & ShellRoute (MiniPlayer Global)](./task-3-gorouter-and-shellroute.md)
+- [x] [Task 4: Inicialização de Serviços Globais (Firebase & Audio)](./task-4-firebase-and-services-init.md)

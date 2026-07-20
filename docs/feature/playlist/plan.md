@@ -29,9 +29,9 @@ lib/src/features/playlist/
 ```
 
 ## 4. Divisão de Tasks
-- [ ] [Task 1: Domain - Modelo PlaylistModel & Interface](./task-1-domain-models.md)
-- [ ] [Task 2: Data - Repositório FirestorePlaylistRepository](./task-2-firestore-playlist-repository.md)
-- [ ] [Task 3: Presentation - Controller de Playlists em Riverpod](./task-3-playlist-riverpod-controller.md)
-- [ ] [Task 4: Presentation - Modal de Criação de Playlist (Dialog UI)](./task-4-create-playlist-dialog-ui.md)
-- [ ] [Task 5: Presentation - Bottom Sheet "Adicionar à Playlist"](./task-5-add-to-playlist-bottom-sheet-ui.md)
-- [ ] [Task 6: Presentation - Tela de Detalhes da Playlist (Stitch UI)](./task-6-playlist-detail-screen-ui.md)
+- [x] [Task 1: Domain - Modelo PlaylistModel & Interface](./task-1-domain-models.md)
+- [x] [Task 2: Data - Repositório FirestorePlaylistRepository](./task-2-firestore-playlist-repository.md)
+- [x] [Task 3: Presentation - Controller de Playlists em Riverpod](./task-3-playlist-riverpod-controller.md)
+- [x] [Task 4: Presentation - Modal de Criação de Playlist (Dialog UI)](./task-4-create-playlist-dialog-ui.md)
+- [x] [Task 5: Presentation - Bottom Sheet "Adicionar à Playlist"](./task-5-add-to-playlist-bottom-sheet-ui.md)
+- [x] [Task 6: Presentation - Tela de Detalhes da Playlist (Stitch UI)](./task-6-playlist-detail-screen-ui.md)

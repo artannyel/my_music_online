@@ -26,7 +26,7 @@ lib/src/features/settings/
 ```
 
 ## 4. Divisão de Tasks
-- [ ] [Task 1: Domain - Modelo AppSettingsModel](./task-1-domain-models.md)
-- [ ] [Task 2: Data - Repositório FirestoreSettingsRepository (Cookies)](./task-2-firestore-cookies-repository.md)
-- [ ] [Task 3: Presentation - Controller de Configurações em Riverpod](./task-3-settings-riverpod-controller.md)
-- [ ] [Task 4: Presentation - Interface da Tela de Cookies (Stitch UI)](./task-4-cookies-upload-screen-ui.md)
+- [x] [Task 1: Domain - Modelo AppSettingsModel](./task-1-domain-models.md)
+- [x] [Task 2: Data - Repositório FirestoreSettingsRepository (Cookies)](./task-2-firestore-cookies-repository.md)
+- [x] [Task 3: Presentation - Controller de Configurações em Riverpod](./task-3-settings-riverpod-controller.md)
+- [x] [Task 4: Presentation - Interface da Tela de Cookies (Stitch UI)](./task-4-cookies-upload-screen-ui.md)

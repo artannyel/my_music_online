@@ -26,7 +26,7 @@ lib/src/features/home/
 ```
 
 ## 4. Divisão de Tasks
-- [ ] [Task 1: Domain - Modelos da Home](./task-1-domain-models.md)
-- [ ] [Task 2: Data - Repositório Home (dart_ytmusic_api)](./task-2-home-repository.md)
-- [ ] [Task 3: Presentation - Controller com Riverpod](./task-3-home-riverpod-controller.md)
-- [ ] [Task 4: Presentation - Interface de Usuário HomeScreen (Stitch)](./task-4-home-screen-ui.md)
+- [x] [Task 1: Domain - Modelos da Home](./task-1-domain-models.md)
+- [x] [Task 2: Data - Repositório Home (dart_ytmusic_api)](./task-2-home-repository.md)
+- [x] [Task 3: Presentation - Controller com Riverpod](./task-3-home-riverpod-controller.md)
+- [x] [Task 4: Presentation - Interface de Usuário HomeScreen (Stitch)](./task-4-home-screen-ui.md)
