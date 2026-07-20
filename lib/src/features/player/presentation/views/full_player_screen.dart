@@ -322,89 +322,126 @@ class FullPlayerScreen extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        final screenHeight = MediaQuery.of(context).size.height;
-        return Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Fila de Reprodução',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: screenHeight * 0.55),
-                child: ListView.builder(
-                  controller: scrollController,
-                  shrinkWrap: true,
-                  itemCount: state.queue.length,
-                  itemBuilder: (context, index) {
-                    final item = state.queue[index];
-                    final isCurrent = index == state.currentIndex;
+        return Consumer(
+          builder: (context, ref, child) {
+            final currentState = ref.watch(playerControllerProvider);
+            final screenHeight = MediaQuery.of(context).size.height;
 
-                    return SizedBox(
-                      height: itemHeight,
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty
-                                ? CachedNetworkImage(
-                                    imageUrl: item.thumbnailUrl!,
-                                    fit: BoxFit.cover,
-                                    errorWidget: (context, url, error) => Container(
-                                      color: AppColors.cardBackground,
-                                      child: const Icon(Icons.music_note, color: AppColors.primary),
-                                    ),
-                                  )
-                                : Container(
-                                    color: AppColors.cardBackground,
-                                    child: const Icon(Icons.music_note, color: AppColors.primary),
-                                  ),
+            return Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Fila de Reprodução',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                           ),
-                        ),
-                        title: Text(
-                          item.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: isCurrent ? AppColors.primary : AppColors.textPrimary,
-                            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                          ),
-                        ),
-                        subtitle: Text(
-                          item.artistName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: isCurrent ? AppColors.primary.withValues(alpha: 0.8) : AppColors.textSecondary,
-                          ),
-                        ),
-                        trailing: isCurrent
-                            ? const Icon(
-                                Icons.volume_up_rounded,
-                                color: AppColors.primary,
-                                size: 22,
-                              )
-                            : null,
-                        onTap: isCurrent
-                            ? null
-                            : () {
-                                ref.read(playerControllerProvider.notifier).playTrackFromQueueIndex(index);
-                                Navigator.pop(context);
-                              },
+                          if (currentState.isRadioMode) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'Rádio',
+                                style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    );
-                  },
-                ),
+                      Text(
+                        '${currentState.queue.length} faixas',
+                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: screenHeight * 0.55),
+                    child: currentState.queue.isEmpty
+                        ? const Center(
+                            child: Text('Nenhuma faixa na fila.', style: TextStyle(color: AppColors.textSecondary)),
+                          )
+                        : ListView.builder(
+                            controller: scrollController,
+                            shrinkWrap: true,
+                            itemCount: currentState.queue.length,
+                            itemBuilder: (context, index) {
+                              final item = currentState.queue[index];
+                              final isCurrent = index == currentState.currentIndex;
+
+                              return SizedBox(
+                                height: itemHeight,
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: SizedBox(
+                                      width: 44,
+                                      height: 44,
+                                      child: item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty
+                                          ? CachedNetworkImage(
+                                              imageUrl: item.thumbnailUrl!,
+                                              fit: BoxFit.cover,
+                                              errorWidget: (context, url, error) => Container(
+                                                color: AppColors.cardBackground,
+                                                child: const Icon(Icons.music_note, color: AppColors.primary),
+                                              ),
+                                            )
+                                          : Container(
+                                              color: AppColors.cardBackground,
+                                              child: const Icon(Icons.music_note, color: AppColors.primary),
+                                            ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    item.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: isCurrent ? AppColors.primary : AppColors.textPrimary,
+                                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    item.artistName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: isCurrent ? AppColors.primary.withValues(alpha: 0.8) : AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  trailing: isCurrent
+                                      ? const Icon(
+                                          Icons.volume_up_rounded,
+                                          color: AppColors.primary,
+                                          size: 22,
+                                        )
+                                      : null,
+                                  onTap: isCurrent
+                                      ? null
+                                      : () {
+                                          ref.read(playerControllerProvider.notifier).playTrackFromQueueIndex(index);
+                                          Navigator.pop(context);
+                                        },
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
