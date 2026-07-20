@@ -4,9 +4,11 @@ import 'package:my_music_online/src/core/theme/app_colors.dart';
 import 'package:my_music_online/src/features/player/presentation/widgets/mini_player_widget.dart';
 import 'route_names.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 /// ScaffoldWithBottomNav envolve o conteúdo principal das páginas (Home, Search, Playlists, Settings)
 /// mantendo a barra de navegação inferior e o MiniPlayer fixos.
-class ScaffoldWithBottomNav extends StatelessWidget {
+class ScaffoldWithBottomNav extends ConsumerWidget {
   final Widget child;
 
   const ScaffoldWithBottomNav({
@@ -17,7 +19,7 @@ class ScaffoldWithBottomNav extends StatelessWidget {
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.toString();
     if (location.startsWith(RouteNames.search)) return 1;
-    if (location.startsWith(RouteNames.playlists)) return 2;
+    if (location.startsWith(RouteNames.playlists) || location.startsWith('/playlist')) return 2;
     if (location.startsWith(RouteNames.settings)) return 3;
     return 0; // Home
   }
@@ -40,14 +42,18 @@ class ScaffoldWithBottomNav extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = _calculateSelectedIndex(context);
 
     return Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(child: child),
-          const MiniPlayerWidget(),
+          Column(
+            children: [
+              Expanded(child: child),
+              const MiniPlayerWidget(),
+            ],
+          ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

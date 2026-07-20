@@ -29,6 +29,17 @@ class MiniPlayerWidget extends ConsumerWidget {
         onTap: () {
           FullPlayerScreen.show(context);
         },
+        onHorizontalDragEnd: (details) {
+          if (details.primaryVelocity != null) {
+            if (details.primaryVelocity! < -200) {
+              // Arrastar para a esquerda: Próxima música
+              ref.read(playerControllerProvider.notifier).nextTrack();
+            } else if (details.primaryVelocity! > 200) {
+              // Arrastar para a direita: Música anterior
+              ref.read(playerControllerProvider.notifier).previousTrack();
+            }
+          }
+        },
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
@@ -102,7 +113,7 @@ class MiniPlayerWidget extends ConsumerWidget {
                       ),
                     ),
 
-                    // Controles Play / Pause / Loading e Next
+                    // Controles Play / Pause / Loading
                     if (playerState.isBuffering)
                       const Padding(
                         padding: EdgeInsets.all(12.0),
@@ -126,17 +137,6 @@ class MiniPlayerWidget extends ConsumerWidget {
                           ref.read(playerControllerProvider.notifier).togglePlayPause();
                         },
                       ),
-
-                    IconButton(
-                      icon: const Icon(
-                        Icons.skip_next_rounded,
-                        color: AppColors.textSecondary,
-                        size: 26,
-                      ),
-                      onPressed: () {
-                        ref.read(playerControllerProvider.notifier).nextTrack();
-                      },
-                    ),
                   ],
                 ),
               ),

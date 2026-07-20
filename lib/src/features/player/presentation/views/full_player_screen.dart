@@ -15,6 +15,7 @@ class FullPlayerScreen extends ConsumerWidget {
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const FullPlayerScreen(),
@@ -88,37 +89,50 @@ class FullPlayerScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Arte da Capa com Brilho Neon Magenta/Violet
-                Center(
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.75,
-                    height: MediaQuery.of(context).size.width * 0.75,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: AppColors.accentGlow,
-                          blurRadius: 30,
-                          spreadRadius: 2,
-                          offset: Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: track.thumbnailUrl != null && track.thumbnailUrl!.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: track.thumbnailUrl!,
-                              fit: BoxFit.cover,
-                              errorWidget: (context, url, error) => Container(
+                // Arte da Capa com Brilho Neon Magenta/Violet e Suporte a Gesto de Arraste (Swipe)
+                GestureDetector(
+                  onHorizontalDragEnd: (details) {
+                    if (details.primaryVelocity != null) {
+                      if (details.primaryVelocity! < -200) {
+                        // Arrastar para a esquerda: Próxima música
+                        ref.read(playerControllerProvider.notifier).nextTrack();
+                      } else if (details.primaryVelocity! > 200) {
+                        // Arrastar para a direita: Música anterior
+                        ref.read(playerControllerProvider.notifier).previousTrack();
+                      }
+                    }
+                  },
+                  child: Center(
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.75,
+                      height: MediaQuery.of(context).size.width * 0.75,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: AppColors.accentGlow,
+                            blurRadius: 30,
+                            spreadRadius: 2,
+                            offset: Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: track.thumbnailUrl != null && track.thumbnailUrl!.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: track.thumbnailUrl!,
+                                fit: BoxFit.cover,
+                                errorWidget: (context, url, error) => Container(
+                                  color: AppColors.cardBackground,
+                                  child: const Icon(Icons.music_note, size: 100, color: AppColors.primary),
+                                ),
+                              )
+                            : Container(
                                 color: AppColors.cardBackground,
                                 child: const Icon(Icons.music_note, size: 100, color: AppColors.primary),
                               ),
-                            )
-                          : Container(
-                              color: AppColors.cardBackground,
-                              child: const Icon(Icons.music_note, size: 100, color: AppColors.primary),
-                            ),
+                      ),
                     ),
                   ),
                 ),
@@ -294,13 +308,21 @@ class FullPlayerScreen extends ConsumerWidget {
   }
 
   void _showQueueBottomSheet(BuildContext context, WidgetRef ref, PlayerStateModel state) {
+    const double itemHeight = 64.0;
+    final double initialOffset = state.currentIndex > 0
+        ? (state.currentIndex * itemHeight)
+        : 0.0;
+    final scrollController = ScrollController(initialScrollOffset: initialOffset);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
+        final screenHeight = MediaQuery.of(context).size.height;
         return Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
@@ -313,32 +335,70 @@ class FullPlayerScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 320),
+                constraints: BoxConstraints(maxHeight: screenHeight * 0.55),
                 child: ListView.builder(
+                  controller: scrollController,
                   shrinkWrap: true,
                   itemCount: state.queue.length,
                   itemBuilder: (context, index) {
                     final item = state.queue[index];
                     final isCurrent = index == state.currentIndex;
 
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        isCurrent ? Icons.volume_up_rounded : Icons.music_note,
-                        color: isCurrent ? AppColors.primary : AppColors.textMuted,
-                      ),
-                      title: Text(
-                        item.title,
-                        style: TextStyle(
-                          color: isCurrent ? AppColors.primary : AppColors.textPrimary,
-                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                    return SizedBox(
+                      height: itemHeight,
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty
+                                ? CachedNetworkImage(
+                                    imageUrl: item.thumbnailUrl!,
+                                    fit: BoxFit.cover,
+                                    errorWidget: (context, url, error) => Container(
+                                      color: AppColors.cardBackground,
+                                      child: const Icon(Icons.music_note, color: AppColors.primary),
+                                    ),
+                                  )
+                                : Container(
+                                    color: AppColors.cardBackground,
+                                    child: const Icon(Icons.music_note, color: AppColors.primary),
+                                  ),
+                          ),
                         ),
+                        title: Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isCurrent ? AppColors.primary : AppColors.textPrimary,
+                            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                        subtitle: Text(
+                          item.artistName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isCurrent ? AppColors.primary.withValues(alpha: 0.8) : AppColors.textSecondary,
+                          ),
+                        ),
+                        trailing: isCurrent
+                            ? const Icon(
+                                Icons.volume_up_rounded,
+                                color: AppColors.primary,
+                                size: 22,
+                              )
+                            : null,
+                        onTap: isCurrent
+                            ? null
+                            : () {
+                                ref.read(playerControllerProvider.notifier).playQueue(state.queue, initialIndex: index);
+                                Navigator.pop(context);
+                              },
                       ),
-                      subtitle: Text(item.artistName, style: const TextStyle(color: AppColors.textSecondary)),
-                      onTap: () {
-                        ref.read(playerControllerProvider.notifier).playQueue(state.queue, initialIndex: index);
-                        Navigator.pop(context);
-                      },
                     );
                   },
                 ),

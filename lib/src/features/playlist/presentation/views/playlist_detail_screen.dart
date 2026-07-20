@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,18 +7,50 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
+import '../../../player/presentation/views/full_player_screen.dart';
 import '../../domain/models/playlist_model.dart';
 import '../controllers/playlist_controller.dart';
 
 /// PlaylistDetailScreen exibe o cabeçalho expandido da playlist, suas músicas ao vivo (YTMusic)
 /// ou armazenadas (Firestore), permitindo salvar na biblioteca ou criar uma cópia customizada.
-class PlaylistDetailScreen extends ConsumerWidget {
+class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final String playlistId;
 
   const PlaylistDetailScreen({
     super.key,
     required this.playlistId,
   });
+
+  @override
+  ConsumerState<PlaylistDetailScreen> createState() => _PlaylistDetailScreenState();
+}
+
+class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
+  late final ScrollController _scrollController;
+  bool _showFloatingPlayButton = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final shouldShow = _scrollController.offset > 320;
+    if (shouldShow != _showFloatingPlayButton) {
+      setState(() {
+        _showFloatingPlayButton = shouldShow;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   List<AudioTrackModel> _mapTracksToAudioQueue(List<PlaylistTrackModel> tracks) {
     return tracks.map((t) {
@@ -33,13 +66,46 @@ class PlaylistDetailScreen extends ConsumerWidget {
     }).toList();
   }
 
+  String _formatTotalDuration(List<PlaylistTrackModel> tracks) {
+    final totalSeconds = tracks.fold<int>(0, (sum, t) => sum + (t.duration?.inSeconds ?? 0));
+    if (totalSeconds == 0) return '';
+    final duration = Duration(seconds: totalSeconds);
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+
+    if (hours > 0) {
+      return '${hours}h ${minutes}min';
+    } else {
+      return '${minutes}min';
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final playlistAsync = ref.watch(playlistDetailsProvider(playlistId));
+  Widget build(BuildContext context) {
+    final playlistAsync = ref.watch(playlistDetailsProvider(widget.playlistId));
     final currentUser = ref.watch(currentUserProvider);
+    final playerState = ref.watch(playerControllerProvider);
+
+    final playlist = playlistAsync.value;
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: (_showFloatingPlayButton && playlist != null && playlist.tracks.isNotEmpty)
+          ? FloatingActionButton(
+              onPressed: () {
+                final queue = _mapTracksToAudioQueue(playlist.tracks);
+                ref.read(playerControllerProvider.notifier).playQueue(queue);
+                FullPlayerScreen.show(context);
+              },
+              backgroundColor: AppColors.primary,
+              elevation: 8,
+              shape: const CircleBorder(),
+              child: const Icon(
+                Icons.play_arrow,
+                color: AppColors.textPrimary,
+              ),
+            )
+          : null,
       body: playlistAsync.when(
         data: (playlist) {
           if (playlist == null) {
@@ -62,7 +128,10 @@ class PlaylistDetailScreen extends ConsumerWidget {
               : const AsyncValue.data(false);
           final isSaved = isSavedAsync.value ?? false;
 
+          final totalDurationStr = _formatTotalDuration(playlist.tracks);
+
           return CustomScrollView(
+            controller: _scrollController,
             slivers: [
               // Sliver AppBar com Capa da Playlist
               SliverAppBar(
@@ -241,7 +310,9 @@ class PlaylistDetailScreen extends ConsumerWidget {
                       ],
                       const SizedBox(height: 8),
                       Text(
-                        '${playlist.tracks.length} músicas',
+                        totalDurationStr.isNotEmpty
+                            ? '${playlist.tracks.length} músicas • $totalDurationStr'
+                            : '${playlist.tracks.length} músicas',
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.primary,
@@ -258,6 +329,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                                   : () {
                                       final queue = _mapTracksToAudioQueue(playlist.tracks);
                                       ref.read(playerControllerProvider.notifier).playQueue(queue);
+                                      FullPlayerScreen.show(context);
                                     },
                               icon: const Icon(Icons.play_arrow, color: AppColors.textPrimary),
                               label: const Text('Tocar Tudo'),
@@ -276,12 +348,23 @@ class PlaylistDetailScreen extends ConsumerWidget {
                                 ? null
                                 : () {
                                     final queue = _mapTracksToAudioQueue(playlist.tracks);
-                                    ref.read(playerControllerProvider.notifier).toggleShuffle();
-                                    ref.read(playerControllerProvider.notifier).playQueue(queue);
+                                    final random = Random();
+                                    final randomIndex = random.nextInt(queue.length);
+                                    final notifier = ref.read(playerControllerProvider.notifier);
+                                    if (!playerState.isShuffleEnabled) {
+                                      notifier.toggleShuffle();
+                                    }
+                                    notifier.playQueue(queue, initialIndex: randomIndex);
+                                    FullPlayerScreen.show(context);
                                   },
-                            icon: const Icon(Icons.shuffle, color: AppColors.textPrimary),
+                            icon: Icon(
+                              Icons.shuffle,
+                              color: playerState.isShuffleEnabled ? AppColors.primary : AppColors.textPrimary,
+                            ),
                             style: IconButton.styleFrom(
-                              backgroundColor: AppColors.surface,
+                              backgroundColor: playerState.isShuffleEnabled
+                                  ? AppColors.primary.withValues(alpha: 0.2)
+                                  : AppColors.surface,
                               padding: const EdgeInsets.all(12),
                             ),
                           ),
@@ -307,17 +390,25 @@ class PlaylistDetailScreen extends ConsumerWidget {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final track = playlist.tracks[index];
+                      final currentTrack = playerState.currentTrack;
+                      final isPlayingThisTrack = currentTrack != null &&
+                          (currentTrack.videoId == (track.videoId ?? track.id) || currentTrack.id == track.id);
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 6.0),
                         child: Material(
-                          color: AppColors.surface,
+                          color: isPlayingThisTrack
+                              ? AppColors.primary.withValues(alpha: 0.12)
+                              : AppColors.surface,
                           borderRadius: BorderRadius.circular(12),
                           clipBehavior: Clip.antiAlias,
                           child: Container(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.divider, width: 0.5),
+                              border: Border.all(
+                                color: isPlayingThisTrack ? AppColors.primary : AppColors.divider,
+                                width: isPlayingThisTrack ? 1.5 : 0.5,
+                              ),
                             ),
                             child: ListTile(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -345,23 +436,37 @@ class PlaylistDetailScreen extends ConsumerWidget {
                                 track.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
+                                  fontWeight: isPlayingThisTrack ? FontWeight.bold : FontWeight.w600,
+                                  color: isPlayingThisTrack ? AppColors.primary : AppColors.textPrimary,
                                 ),
                               ),
                               subtitle: Text(
                                 track.artistName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: AppColors.textSecondary,
+                                  color: isPlayingThisTrack
+                                      ? AppColors.primary.withValues(alpha: 0.8)
+                                      : AppColors.textSecondary,
                                 ),
                               ),
-                              trailing: isOwner
-                                  ? IconButton(
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isPlayingThisTrack)
+                                    const Padding(
+                                      padding: EdgeInsets.only(right: 6.0),
+                                      child: Icon(
+                                        Icons.volume_up_rounded,
+                                        color: AppColors.primary,
+                                        size: 22,
+                                      ),
+                                    ),
+                                  if (isOwner)
+                                    IconButton(
                                       icon: const Icon(Icons.close, color: AppColors.textMuted, size: 20),
                                       onPressed: () async {
                                         await ref
@@ -370,13 +475,19 @@ class PlaylistDetailScreen extends ConsumerWidget {
                                               playlistId: playlist.id,
                                               trackId: track.id,
                                             );
-                                        ref.invalidate(playlistDetailsProvider(playlistId));
+                                        ref.invalidate(playlistDetailsProvider(widget.playlistId));
                                       },
-                                    )
-                                  : null,
+                                    ),
+                                ],
+                              ),
                               onTap: () {
-                                final queue = _mapTracksToAudioQueue(playlist.tracks);
-                                ref.read(playerControllerProvider.notifier).playQueue(queue, initialIndex: index);
+                                if (isPlayingThisTrack) {
+                                  FullPlayerScreen.show(context);
+                                } else {
+                                  final queue = _mapTracksToAudioQueue(playlist.tracks);
+                                  ref.read(playerControllerProvider.notifier).playQueue(queue, initialIndex: index);
+                                  FullPlayerScreen.show(context);
+                                }
                               },
                             ),
                           ),
@@ -388,7 +499,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                 ),
 
               const SliverToBoxAdapter(
-                child: SizedBox(height: 40),
+                child: SizedBox(height: 80),
               ),
             ],
           );

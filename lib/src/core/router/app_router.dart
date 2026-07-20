@@ -35,14 +35,7 @@ class AppRouter {
           return const RegisterScreen();
         },
       ),
-      // Rota de Detalhes da Playlist
-      GoRoute(
-        path: RouteNames.playlistDetail,
-        builder: (BuildContext context, GoRouterState state) {
-          final playlistId = state.pathParameters['id'] ?? '';
-          return PlaylistDetailScreen(playlistId: playlistId);
-        },
-      ),
+
 
       // ShellRoute para páginas principais com BottomNav & MiniPlayer persistente
       ShellRoute(
@@ -67,6 +60,13 @@ class AppRouter {
             path: RouteNames.playlists,
             builder: (BuildContext context, GoRouterState state) {
               return const PlaylistsScreen();
+            },
+          ),
+          GoRoute(
+            path: RouteNames.playlistDetail,
+            builder: (BuildContext context, GoRouterState state) {
+              final playlistId = state.pathParameters['id'] ?? '';
+              return PlaylistDetailScreen(playlistId: playlistId);
             },
           ),
           GoRoute(

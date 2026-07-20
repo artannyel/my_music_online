@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:audio_service/audio_service.dart';
 import '../../data/services/audio_player_service.dart';
+import '../../data/services/app_audio_handler.dart';
+import '../../data/services/audio_handler_provider.dart';
 import '../../domain/models/player_state_model.dart';
 
 /// Provider singleton para a instância do AudioPlayerService.
@@ -12,15 +16,28 @@ final audioPlayerServiceProvider = Provider<AudioPlayerService>((ref) {
   return service;
 });
 
+
+
 /// Controller StateNotifier do Player de Áudio reativo em tempo real.
 class PlayerController extends StateNotifier<PlayerStateModel> {
   final AudioPlayerService _service;
+  final AppAudioHandler _audioHandler;
   StreamSubscription? _playerStateSubscription;
   StreamSubscription? _positionSubscription;
   StreamSubscription? _durationSubscription;
 
-  PlayerController(this._service) : super(const PlayerStateModel()) {
+  PlayerController(this._service, this._audioHandler) : super(const PlayerStateModel()) {
     _initSubscriptions();
+  }
+
+  void _updateNotification(AudioTrackModel track) {
+    _audioHandler.updateMediaItem(MediaItem(
+      id: track.videoId,
+      title: track.title,
+      artist: track.artistName,
+      artUri: track.thumbnailUrl != null ? Uri.tryParse(track.thumbnailUrl!) : null,
+      duration: state.duration, // Poderá ser atualizado depois se chegar do just_audio
+    ));
   }
 
   void _initSubscriptions() {
@@ -38,7 +55,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       );
 
       if (processingState == ProcessingState.completed) {
-        nextTrack();
+        nextTrack(isAutoCompletion: true);
       }
     });
 
@@ -64,6 +81,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     );
 
     try {
+      _updateNotification(track);
       await _service.playTrack(track);
     } catch (e, st) {
       debugPrint('[PlayerController] Erro capturado em playTrack: $e\n$st');
@@ -87,6 +105,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     );
 
     try {
+      _updateNotification(targetTrack);
       await _service.playTrack(targetTrack);
     } catch (e, st) {
       debugPrint('[PlayerController] Erro capturado em playQueue: $e\n$st');
@@ -111,16 +130,30 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
   }
 
   /// Avança para a próxima música da fila
-  Future<void> nextTrack() async {
+  Future<void> nextTrack({bool isAutoCompletion = false}) async {
     if (state.queue.isEmpty) return;
 
-    int nextIndex = state.currentIndex + 1;
-    if (nextIndex >= state.queue.length) {
-      if (state.repeatMode == RepeatMode.all) {
-        nextIndex = 0;
-      } else {
-        await _service.pause();
-        return;
+    if (isAutoCompletion && state.repeatMode == RepeatMode.one && state.currentTrack != null) {
+      await seek(Duration.zero);
+      await _service.play();
+      return;
+    }
+
+    int nextIndex;
+    if (state.isShuffleEnabled && state.queue.length > 1) {
+      final random = Random();
+      do {
+        nextIndex = random.nextInt(state.queue.length);
+      } while (nextIndex == state.currentIndex);
+    } else {
+      nextIndex = state.currentIndex + 1;
+      if (nextIndex >= state.queue.length) {
+        if (state.repeatMode == RepeatMode.all) {
+          nextIndex = 0;
+        } else {
+          await _service.pause();
+          return;
+        }
       }
     }
 
@@ -133,6 +166,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     );
 
     try {
+      _updateNotification(nextTrackItem);
       await _service.playTrack(nextTrackItem);
     } catch (e, st) {
       debugPrint('[PlayerController] Erro em nextTrack: $e\n$st');
@@ -149,9 +183,17 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       return;
     }
 
-    int prevIndex = state.currentIndex - 1;
-    if (prevIndex < 0) {
-      prevIndex = state.queue.length - 1;
+    int prevIndex;
+    if (state.isShuffleEnabled && state.queue.length > 1) {
+      final random = Random();
+      do {
+        prevIndex = random.nextInt(state.queue.length);
+      } while (prevIndex == state.currentIndex);
+    } else {
+      prevIndex = state.currentIndex - 1;
+      if (prevIndex < 0) {
+        prevIndex = state.queue.length - 1;
+      }
     }
 
     final prevTrackItem = state.queue[prevIndex];
@@ -163,6 +205,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     );
 
     try {
+      _updateNotification(prevTrackItem);
       await _service.playTrack(prevTrackItem);
     } catch (e, st) {
       debugPrint('[PlayerController] Erro em previousTrack: $e\n$st');
@@ -201,5 +244,6 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 /// Provider do PlayerController em Riverpod.
 final playerControllerProvider = StateNotifierProvider<PlayerController, PlayerStateModel>((ref) {
   final service = ref.watch(audioPlayerServiceProvider);
-  return PlayerController(service);
+  final handler = ref.watch(audioHandlerProvider);
+  return PlayerController(service, handler);
 });
