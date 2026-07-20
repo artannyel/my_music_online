@@ -5,10 +5,12 @@ Criar o provider Riverpod para busca contendo lógica de *debounce* (ex: aguarda
 
 ## 🎯 Escopo da Task
 1. Criar `lib/src/features/search/presentation/controllers/search_controller.dart`.
-2. Expor `searchQueryProvider`, `selectedFilterProvider` e `searchResultsProvider`.
+2. Expor `searchQueryProvider`, `searchSuggestionsProvider` (debounce de 300ms chamando `getSearchSuggestions`), `selectedFilterProvider` e `searchResultsProvider`.
+3. Adicionar método de submissão de busca e seleção de sugestões.
 
 ## 📋 Arquivos a Modificar / Criar
 - `lib/src/features/search/presentation/controllers/search_controller.dart`
 
 ## ✅ Critérios de Aceite
-- Redução de requisições desnecessárias durante a digitação rápida do usuário.
+- Autocompletar rápido e dinâmico ao digitar.
+- Redução de requisições desnecessárias durante a digitação do usuário.

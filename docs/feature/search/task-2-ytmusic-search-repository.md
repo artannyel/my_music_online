@@ -6,10 +6,12 @@ Conectar com a biblioteca `dart_ytmusic_api` para executar buscas por termo e in
 ## 🎯 Escopo da Task
 1. Criar `lib/src/features/search/data/repositories/ytmusic_search_repository.dart`.
 2. Escutar/Receber o texto do `cookies.txt` salvo no Firebase para autenticar as requisições de busca do YouTube Music.
-3. Implementar `search(String query, {SearchType? filterType})`.
+3. Implementar `getSearchSuggestions(String query)` usando `_ytMusic.getSearchSuggestions(query)` para o autocompletar instantâneo de texto.
+4. Implementar `search(String query, {SearchType? filterType})` usando `_ytMusic.search`, `searchSongs`, `searchAlbums`, `searchArtists` e `searchPlaylists`.
 
 ## 📋 Arquivos a Modificar / Criar
 - `lib/src/features/search/data/repositories/ytmusic_search_repository.dart`
 
 ## ✅ Critérios de Aceite
 - Requisições de busca autenticadas usando os cookies do Firebase de forma transparente.
+- Suporte a sugestões dinâmicas de autocompletar via `getSearchSuggestions`.
