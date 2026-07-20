@@ -6,6 +6,7 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
+import '../../../player/presentation/views/full_player_screen.dart';
 import '../../domain/models/home_section_model.dart';
 import '../controllers/home_controller.dart';
 
@@ -36,7 +37,7 @@ class HomeScreen extends ConsumerWidget {
         context.push('/artist/$targetId');
         break;
       case HomeItemType.song:
-        ref.read(playerControllerProvider.notifier).playTrack(
+        ref.read(playerControllerProvider.notifier).playTrackWithRadio(
               AudioTrackModel(
                 id: item.id,
                 videoId: item.id,
@@ -45,6 +46,7 @@ class HomeScreen extends ConsumerWidget {
                 thumbnailUrl: item.thumbnailUrl,
               ),
             );
+        FullPlayerScreen.show(context);
         break;
     }
   }

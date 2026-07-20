@@ -82,6 +82,7 @@ class PlayerStateModel {
   final Duration duration;
   final RepeatMode repeatMode;
   final bool isShuffleEnabled;
+  final bool isRadioMode;
   final List<AudioTrackModel> queue;
   final int currentIndex;
 
@@ -93,6 +94,7 @@ class PlayerStateModel {
     this.duration = Duration.zero,
     this.repeatMode = RepeatMode.off,
     this.isShuffleEnabled = false,
+    this.isRadioMode = false,
     this.queue = const [],
     this.currentIndex = -1,
   });
@@ -105,6 +107,7 @@ class PlayerStateModel {
     Duration? duration,
     RepeatMode? repeatMode,
     bool? isShuffleEnabled,
+    bool? isRadioMode,
     List<AudioTrackModel>? queue,
     int? currentIndex,
   }) {
@@ -116,6 +119,7 @@ class PlayerStateModel {
       duration: duration ?? this.duration,
       repeatMode: repeatMode ?? this.repeatMode,
       isShuffleEnabled: isShuffleEnabled ?? this.isShuffleEnabled,
+      isRadioMode: isRadioMode ?? this.isRadioMode,
       queue: queue ?? this.queue,
       currentIndex: currentIndex ?? this.currentIndex,
     );

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:dart_ytmusic_api/dart_ytmusic_api.dart';
 import '../../data/services/audio_player_service.dart';
 import '../../data/services/app_audio_handler.dart';
 import '../../data/services/audio_handler_provider.dart';
@@ -16,12 +17,14 @@ final audioPlayerServiceProvider = Provider<AudioPlayerService>((ref) {
   return service;
 });
 
-
-
-/// Controller StateNotifier do Player de Áudio reativo em tempo real.
+/// Controller StateNotifier do Player de Áudio reativo em tempo real com Rádio Automix.
 class PlayerController extends StateNotifier<PlayerStateModel> {
   final AudioPlayerService _service;
   final AppAudioHandler _audioHandler;
+  final YTMusic _ytMusic = YTMusic();
+  bool _isFetchingRadio = false;
+  bool _isYtMusicInitialized = false;
+
   StreamSubscription? _playerStateSubscription;
   StreamSubscription? _positionSubscription;
   StreamSubscription? _durationSubscription;
@@ -36,7 +39,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       title: track.title,
       artist: track.artistName,
       artUri: track.thumbnailUrl != null ? Uri.tryParse(track.thumbnailUrl!) : null,
-      duration: state.duration, // Poderá ser atualizado depois se chegar do just_audio
+      duration: state.duration,
     ));
   }
 
@@ -70,7 +73,28 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     });
   }
 
-  /// Toca uma faixa específica e limpa a fila atual
+  /// Toca uma faixa específica com o modo Rádio Automix ativado (filas infinitas)
+  Future<void> playTrackWithRadio(AudioTrackModel track) async {
+    state = state.copyWith(
+      currentTrack: track,
+      queue: [track],
+      currentIndex: 0,
+      isBuffering: true,
+      position: Duration.zero,
+      isRadioMode: true,
+    );
+
+    try {
+      _updateNotification(track);
+      await _service.playTrack(track);
+      _fetchAndAppendUpNexts(track.videoId);
+    } catch (e, st) {
+      debugPrint('[PlayerController] Erro capturado em playTrackWithRadio: $e\n$st');
+      state = state.copyWith(isBuffering: false, isPlaying: false);
+    }
+  }
+
+  /// Toca uma faixa específica e limpa a fila atual (modo estático)
   Future<void> playTrack(AudioTrackModel track) async {
     state = state.copyWith(
       currentTrack: track,
@@ -78,6 +102,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       currentIndex: 0,
       isBuffering: true,
       position: Duration.zero,
+      isRadioMode: false,
     );
 
     try {
@@ -102,6 +127,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       currentTrack: targetTrack,
       isBuffering: true,
       position: Duration.zero,
+      isRadioMode: false,
     );
 
     try {
@@ -110,6 +136,42 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     } catch (e, st) {
       debugPrint('[PlayerController] Erro capturado em playQueue: $e\n$st');
       state = state.copyWith(isBuffering: false, isPlaying: false);
+    }
+  }
+
+  /// Busca em segundo plano o Rádio Automix (getUpNexts) e anexa à fila de reprodução
+  Future<void> _fetchAndAppendUpNexts(String videoId) async {
+    if (_isFetchingRadio) return;
+    _isFetchingRadio = true;
+
+    try {
+      if (!_isYtMusicInitialized) {
+        await _ytMusic.initialize(gl: 'BR', hl: 'pt-BR');
+        _isYtMusicInitialized = true;
+      }
+
+      final upNexts = await _ytMusic.getUpNexts(videoId);
+
+      final newTracks = upNexts.map((item) {
+        return AudioTrackModel(
+          id: item.videoId,
+          videoId: item.videoId,
+          title: item.title,
+          artistName: item.artists.name,
+          albumName: item.album?.name,
+          thumbnailUrl: item.thumbnails.isNotEmpty ? item.thumbnails.last.url : null,
+          duration: Duration(seconds: item.duration),
+        );
+      }).where((t) => !state.queue.any((qTrack) => qTrack.videoId == t.videoId)).toList();
+
+      if (newTracks.isNotEmpty) {
+        final updatedQueue = List<AudioTrackModel>.from(state.queue)..addAll(newTracks);
+        state = state.copyWith(queue: updatedQueue);
+      }
+    } catch (e, st) {
+      debugPrint('[PlayerController] Erro ao buscar Rádio Automix (getUpNexts): $e\n$st');
+    } finally {
+      _isFetchingRadio = false;
     }
   }
 
@@ -164,6 +226,11 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       isBuffering: true,
       position: Duration.zero,
     );
+
+    // Se o Rádio Automix estiver ativo e estivermos perto do fim da fila, busca mais faixas
+    if (state.isRadioMode && nextIndex >= state.queue.length - 2) {
+      _fetchAndAppendUpNexts(nextTrackItem.videoId);
+    }
 
     try {
       _updateNotification(nextTrackItem);
