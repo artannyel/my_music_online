@@ -28,9 +28,9 @@ lib/src/features/auth/
 ```
 
 ## 4. Divisão de Tasks
-- [x] [Task 1: Domain - Modelo User & Interface AuthRepository](./task-1-domain-models-and-repository.md)
-- [x] [Task 2: Data - Implementação FirebaseAuthRepository](./task-2-firebase-auth-repository.md)
-- [x] [Task 3: Presentation - Controller de Autenticação com Riverpod](./task-3-auth-riverpod-controller.md)
-- [x] [Task 4: Presentation - Interface de Login (LoginScreen)](./task-4-login-screen-ui.md)
-- [x] [Task 5: Presentation - Interface de Cadastro (RegisterScreen)](./task-5-register-screen-ui.md)
-- [x] [Task 6: Router AuthGuard - Proteção de Rotas no GoRouter](./task-6-auth-guard-router.md)
+- [ ] [Task 1: Domain - Modelo User & Interface AuthRepository](./task-1-domain-models-and-repository.md)
+- [ ] [Task 2: Data - Implementação FirebaseAuthRepository](./task-2-firebase-auth-repository.md)
+- [ ] [Task 3: Presentation - Controller de Autenticação com Riverpod](./task-3-auth-riverpod-controller.md)
+- [ ] [Task 4: Presentation - Interface de Login (LoginScreen)](./task-4-login-screen-ui.md)
+- [ ] [Task 5: Presentation - Interface de Cadastro (RegisterScreen)](./task-5-register-screen-ui.md)
+- [ ] [Task 6: Router AuthGuard - Proteção de Rotas no GoRouter](./task-6-auth-guard-router.md)

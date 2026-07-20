@@ -26,7 +26,7 @@ lib/src/features/album/
 ```
 
 ## 4. Divisão de Tasks
-- [x] [Task 1: Domain - Modelo AlbumModel](./task-1-domain-models.md)
-- [x] [Task 2: Data - Repositório AlbumRepository (dart_ytmusic_api)](./task-2-album-repository.md)
-- [x] [Task 3: Presentation - Controller em Riverpod](./task-3-album-riverpod-controller.md)
-- [x] [Task 4: Presentation - Interface de Usuário AlbumDetailScreen (Stitch)](./task-4-album-detail-screen-ui.md)
+- [ ] [Task 1: Domain - Modelo AlbumModel](./task-1-domain-models.md)
+- [ ] [Task 2: Data - Repositório AlbumRepository (dart_ytmusic_api)](./task-2-album-repository.md)
+- [ ] [Task 3: Presentation - Controller em Riverpod](./task-3-album-riverpod-controller.md)
+- [ ] [Task 4: Presentation - Interface de Usuário AlbumDetailScreen (Stitch)](./task-4-album-detail-screen-ui.md)
