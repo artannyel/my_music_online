@@ -22,6 +22,7 @@ void main() async {
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.mymusiconline.channel.audio',
       androidNotificationChannelName: 'Música',
+      androidNotificationIcon: 'drawable/ic_notification',
       androidNotificationOngoing: true,
     ),
   );
