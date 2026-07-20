@@ -395,7 +395,7 @@ class FullPlayerScreen extends ConsumerWidget {
                         onTap: isCurrent
                             ? null
                             : () {
-                                ref.read(playerControllerProvider.notifier).playQueue(state.queue, initialIndex: index);
+                                ref.read(playerControllerProvider.notifier).playTrackFromQueueIndex(index);
                                 Navigator.pop(context);
                               },
                       ),

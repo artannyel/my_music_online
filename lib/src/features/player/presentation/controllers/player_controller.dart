@@ -22,7 +22,6 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
   final AudioPlayerService _service;
   final AppAudioHandler _audioHandler;
   final YTMusic _ytMusic = YTMusic();
-  bool _isFetchingRadio = false;
   bool _isYtMusicInitialized = false;
 
   StreamSubscription? _playerStateSubscription;
@@ -139,10 +138,44 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     }
   }
 
+  Future<void>? _activeRadioFetch;
+
+  /// Toca uma faixa selecionada da fila de reprodução mantendo o modo atual (ex: Rádio Automix)
+  Future<void> playTrackFromQueueIndex(int index) async {
+    if (state.queue.isEmpty) return;
+
+    final targetIndex = index.clamp(0, state.queue.length - 1);
+    final targetTrack = state.queue[targetIndex];
+
+    state = state.copyWith(
+      currentIndex: targetIndex,
+      currentTrack: targetTrack,
+      isBuffering: true,
+      position: Duration.zero,
+    );
+
+    // Se estiver no modo Rádio e estiver nos últimos 3 elementos, busca mais faixas
+    if (state.isRadioMode && targetIndex >= state.queue.length - 3) {
+      _fetchAndAppendUpNexts(targetTrack.videoId);
+    }
+
+    try {
+      _updateNotification(targetTrack);
+      await _service.playTrack(targetTrack);
+    } catch (e, st) {
+      debugPrint('[PlayerController] Erro capturado em playTrackFromQueueIndex: $e\n$st');
+      state = state.copyWith(isBuffering: false, isPlaying: false);
+    }
+  }
+
   /// Busca em segundo plano o Rádio Automix (getUpNexts) e anexa à fila de reprodução
   Future<void> _fetchAndAppendUpNexts(String videoId) async {
-    if (_isFetchingRadio) return;
-    _isFetchingRadio = true;
+    if (_activeRadioFetch != null) {
+      await _activeRadioFetch;
+    }
+
+    final completer = Completer<void>();
+    _activeRadioFetch = completer.future;
 
     try {
       if (!_isYtMusicInitialized) {
@@ -171,7 +204,10 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     } catch (e, st) {
       debugPrint('[PlayerController] Erro ao buscar Rádio Automix (getUpNexts): $e\n$st');
     } finally {
-      _isFetchingRadio = false;
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+      _activeRadioFetch = null;
     }
   }
 
@@ -201,14 +237,31 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       return;
     }
 
-    int nextIndex;
+    int nextIndex = state.currentIndex + 1;
+
+    // Se estiver no modo Rádio Automix
+    if (state.isRadioMode) {
+      // Se chegarmos perto ou no final da fila, busca mais faixas imediatamente!
+      if (nextIndex >= state.queue.length - 2) {
+        final lastVideoId = state.queue.last.videoId;
+        if (nextIndex >= state.queue.length) {
+          // Se o usuário clicou Próximo e já estava na ÚLTIMA música da fila:
+          // Aguarda o término da busca para expandir a fila antes de prosseguir!
+          state = state.copyWith(isBuffering: true);
+          await _fetchAndAppendUpNexts(lastVideoId);
+        } else {
+          // Se ainda restam 1 ou 2 faixas, busca assincronamente em segundo plano
+          _fetchAndAppendUpNexts(lastVideoId);
+        }
+      }
+    }
+
     if (state.isShuffleEnabled && state.queue.length > 1) {
       final random = Random();
       do {
         nextIndex = random.nextInt(state.queue.length);
       } while (nextIndex == state.currentIndex);
     } else {
-      nextIndex = state.currentIndex + 1;
       if (nextIndex >= state.queue.length) {
         if (state.repeatMode == RepeatMode.all) {
           nextIndex = 0;
@@ -226,11 +279,6 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       isBuffering: true,
       position: Duration.zero,
     );
-
-    // Se o Rádio Automix estiver ativo e estivermos perto do fim da fila, busca mais faixas
-    if (state.isRadioMode && nextIndex >= state.queue.length - 2) {
-      _fetchAndAppendUpNexts(nextTrackItem.videoId);
-    }
 
     try {
       _updateNotification(nextTrackItem);
