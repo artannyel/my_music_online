@@ -26,7 +26,7 @@ lib/src/features/search/
 ```
 
 ## 4. Divisão de Tasks
-- [ ] [Task 1: Domain - Modelos SearchResultModel](./task-1-domain-models.md)
-- [ ] [Task 2: Data - Repositório de Busca (dart_ytmusic_api)](./task-2-ytmusic-search-repository.md)
-- [ ] [Task 3: Presentation - Controller com Debounce (Riverpod)](./task-3-search-riverpod-controller.md)
-- [ ] [Task 4: Presentation - Interface de Busca SearchScreen (Stitch)](./task-4-search-screen-ui.md)
+- [x] [Task 1: Domain - Modelos SearchResultModel](./task-1-domain-models.md)
+- [x] [Task 2: Data - Repositório de Busca (dart_ytmusic_api)](./task-2-ytmusic-search-repository.md)
+- [x] [Task 3: Presentation - Controller com Debounce (Riverpod)](./task-3-search-riverpod-controller.md)
+- [x] [Task 4: Presentation - Interface de Busca SearchScreen (Stitch)](./task-4-search-screen-ui.md)
