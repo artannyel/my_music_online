@@ -20,19 +20,30 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   late final TextEditingController _textController;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
     _textController = TextEditingController();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+    
     final initialQuery = ref.read(searchQueryProvider);
     _textController.text = initialQuery;
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _textController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      ref.read(searchResultsProvider.notifier).loadMore();
+    }
   }
 
   void _submitSearch(String query) {
@@ -175,9 +186,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             );
                           }
                           return ListView.builder(
+                            controller: _scrollController,
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            itemCount: results.length,
+                            itemCount: results.length + (resultsAsync.isLoading ? 1 : 0),
                             itemBuilder: (context, index) {
+                              if (index == results.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                                  child: Center(
+                                    child: CircularProgressIndicator(color: AppColors.primary),
+                                  ),
+                                );
+                              }
                               final item = results[index];
                               return _buildResultCard(context, item);
                             },

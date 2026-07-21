@@ -9,11 +9,9 @@ class FirestorePlaylistRepository implements PlaylistRepository {
   final FirebaseFirestore _firestore;
   final YTMusic _ytMusic;
 
-  FirestorePlaylistRepository({
-    FirebaseFirestore? firestore,
-    YTMusic? ytMusic,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _ytMusic = ytMusic ?? YTMusic();
+  FirestorePlaylistRepository({FirebaseFirestore? firestore, YTMusic? ytMusic})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _ytMusic = ytMusic ?? YTMusic();
 
   CollectionReference<Map<String, dynamic>> get _playlistsRef =>
       _firestore.collection('playlists');
@@ -29,12 +27,12 @@ class FirestorePlaylistRepository implements PlaylistRepository {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return PlaylistModel.fromJson(data);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return PlaylistModel.fromJson(data);
+          }).toList();
+        });
   }
 
   @override
@@ -101,13 +99,15 @@ class FirestorePlaylistRepository implements PlaylistRepository {
           final rawAlbum = await _ytMusic.getAlbum(ytSearchId);
           final String? cover = rawAlbum.thumbnails.isNotEmpty
               ? (rawAlbum.thumbnails.length >= 2
-                  ? rawAlbum.thumbnails[1].url
-                  : rawAlbum.thumbnails.last.url)
+                    ? rawAlbum.thumbnails[1].url
+                    : rawAlbum.thumbnails.last.url)
               : null;
 
           final tracks = rawAlbum.songs.map((s) {
             final String? thumb = s.thumbnails.isNotEmpty
-                ? (s.thumbnails.length >= 2 ? s.thumbnails[1].url : s.thumbnails.last.url)
+                ? (s.thumbnails.length >= 2
+                      ? s.thumbnails[1].url
+                      : s.thumbnails.last.url)
                 : null;
 
             return PlaylistTrackModel(
@@ -117,7 +117,9 @@ class FirestorePlaylistRepository implements PlaylistRepository {
               albumName: s.album?.name ?? rawAlbum.name,
               thumbnailUrl: thumb,
               videoId: s.videoId,
-              duration: s.duration != null ? Duration(seconds: s.duration!) : null,
+              duration: s.duration != null
+                  ? Duration(seconds: s.duration!)
+                  : null,
             );
           }).toList();
 
@@ -141,8 +143,8 @@ class FirestorePlaylistRepository implements PlaylistRepository {
         final rawPlaylist = await _ytMusic.getPlaylist(ytSearchId);
         final String? cover = rawPlaylist.thumbnails.isNotEmpty
             ? (rawPlaylist.thumbnails.length >= 2
-                ? rawPlaylist.thumbnails[1].url
-                : rawPlaylist.thumbnails.last.url)
+                  ? rawPlaylist.thumbnails[1].url
+                  : rawPlaylist.thumbnails.last.url)
             : null;
 
         List<PlaylistTrackModel> tracks = [];
@@ -150,7 +152,9 @@ class FirestorePlaylistRepository implements PlaylistRepository {
           final videos = await _ytMusic.getPlaylistVideos(ytSearchId);
           tracks = videos.map((v) {
             final String? thumb = v.thumbnails.isNotEmpty
-                ? (v.thumbnails.length >= 2 ? v.thumbnails[1].url : v.thumbnails.last.url)
+                ? (v.thumbnails.length >= 2
+                      ? v.thumbnails[1].url
+                      : v.thumbnails.last.url)
                 : null;
 
             return PlaylistTrackModel(
@@ -159,7 +163,9 @@ class FirestorePlaylistRepository implements PlaylistRepository {
               artistName: v.artist.name,
               thumbnailUrl: thumb,
               videoId: v.videoId,
-              duration: v.duration != null ? Duration(seconds: v.duration!) : null,
+              duration: v.duration != null
+                  ? Duration(seconds: v.duration!)
+                  : null,
             );
           }).toList();
         } catch (_) {}
@@ -167,10 +173,9 @@ class FirestorePlaylistRepository implements PlaylistRepository {
         return PlaylistModel(
           id: firestorePlaylist?.id ?? rawPlaylist.playlistId,
           userId: firestorePlaylist?.userId,
-          title: firestorePlaylist?.title.isNotEmpty == true
-              ? rawPlaylist.name
-              : (firestorePlaylist?.title ?? 'Playlist do YouTube'),
-          description: firestorePlaylist?.description ?? rawPlaylist.artist.name,
+          title: firestorePlaylist?.title ?? rawPlaylist.name,
+          description:
+              firestorePlaylist?.description ?? rawPlaylist.artist.name,
           coverUrl: firestorePlaylist?.coverUrl ?? cover,
           tracks: tracks,
           createdAt: firestorePlaylist?.createdAt ?? DateTime.now(),
@@ -185,13 +190,15 @@ class FirestorePlaylistRepository implements PlaylistRepository {
         final rawAlbum = await _ytMusic.getAlbum(ytSearchId);
         final String? cover = rawAlbum.thumbnails.isNotEmpty
             ? (rawAlbum.thumbnails.length >= 2
-                ? rawAlbum.thumbnails[1].url
-                : rawAlbum.thumbnails.last.url)
+                  ? rawAlbum.thumbnails[1].url
+                  : rawAlbum.thumbnails.last.url)
             : null;
 
         final tracks = rawAlbum.songs.map((s) {
           final String? thumb = s.thumbnails.isNotEmpty
-              ? (s.thumbnails.length >= 2 ? s.thumbnails[1].url : s.thumbnails.last.url)
+              ? (s.thumbnails.length >= 2
+                    ? s.thumbnails[1].url
+                    : s.thumbnails.last.url)
               : null;
 
           return PlaylistTrackModel(
@@ -201,7 +208,9 @@ class FirestorePlaylistRepository implements PlaylistRepository {
             albumName: s.album?.name ?? rawAlbum.name,
             thumbnailUrl: thumb,
             videoId: s.videoId,
-            duration: s.duration != null ? Duration(seconds: s.duration!) : null,
+            duration: s.duration != null
+                ? Duration(seconds: s.duration!)
+                : null,
           );
         }).toList();
 
@@ -376,7 +385,9 @@ class FirestorePlaylistRepository implements PlaylistRepository {
 
       if (playlist.type != PlaylistType.custom) return;
 
-      final updatedTracks = playlist.tracks.where((t) => t.id != trackId).toList();
+      final updatedTracks = playlist.tracks
+          .where((t) => t.id != trackId)
+          .toList();
 
       await docRef.update({
         'tracks': updatedTracks.map((t) => t.toJson()).toList(),
