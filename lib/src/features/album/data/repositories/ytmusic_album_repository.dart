@@ -55,7 +55,65 @@ class YtMusicAlbumRepository implements AlbumRepository {
         tracks: mappedTracks,
       );
     } catch (e) {
-      return null;
+      // Fallback 1: Tentar como Playlist
+      try {
+        final playlistFull = await _ytMusic.getPlaylist(cleanId);
+        final playlistVideos = await _ytMusic.getPlaylistVideos(cleanId);
+
+        final coverUrl = playlistFull.thumbnails.isNotEmpty ? playlistFull.thumbnails.last.url : null;
+        
+        final mappedTracks = playlistVideos.map((video) {
+          final trackThumb = video.thumbnails.isNotEmpty ? video.thumbnails.last.url : coverUrl;
+          return AudioTrackModel(
+            id: video.videoId,
+            videoId: video.videoId,
+            title: video.name,
+            artistName: video.artist.name.isNotEmpty ? video.artist.name : playlistFull.artist.name,
+            albumName: playlistFull.name,
+            thumbnailUrl: trackThumb,
+            duration: video.duration != null ? Duration(seconds: video.duration!) : null,
+          );
+        }).toList();
+
+        return AlbumModel(
+          id: playlistFull.playlistId,
+          title: playlistFull.name,
+          artistName: playlistFull.artist.name,
+          artistId: playlistFull.artist.artistId,
+          coverUrl: coverUrl,
+          year: null,
+          trackCount: mappedTracks.length,
+          tracks: mappedTracks,
+        );
+      } catch (e2) {
+        // Fallback 2: Tentar como Single (Song)
+        try {
+          final songFull = await _ytMusic.getSong(cleanId);
+          final coverUrl = songFull.thumbnails.isNotEmpty ? songFull.thumbnails.last.url : null;
+          return AlbumModel(
+            id: songFull.videoId,
+            title: songFull.name,
+            artistName: songFull.artist.name,
+            artistId: songFull.artist.artistId,
+            coverUrl: coverUrl,
+            year: null,
+            trackCount: 1,
+            tracks: [
+              AudioTrackModel(
+                id: songFull.videoId,
+                videoId: songFull.videoId,
+                title: songFull.name,
+                artistName: songFull.artist.name,
+                albumName: songFull.name,
+                thumbnailUrl: coverUrl,
+                duration: Duration(seconds: songFull.duration),
+              )
+            ],
+          );
+        } catch(e3) {
+          return null;
+        }
+      }
     }
   }
 }

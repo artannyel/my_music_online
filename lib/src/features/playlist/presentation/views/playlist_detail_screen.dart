@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -328,45 +327,34 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                   ? null
                                   : () {
                                       final queue = _mapTracksToAudioQueue(playlist.tracks);
-                                      ref.read(playerControllerProvider.notifier).playQueue(queue);
+                                      ref.read(playerControllerProvider.notifier).playQueue(queue, initialIndex: 0);
                                       FullPlayerScreen.show(context);
                                     },
-                              icon: const Icon(Icons.play_arrow, color: AppColors.textPrimary),
-                              label: const Text('Tocar Tudo'),
+                              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 26),
+                              label: const Text('Tocar Tudo', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                               ),
                             ),
                           ),
                           const SizedBox(width: 12),
-                          IconButton(
+                          OutlinedButton(
                             onPressed: playlist.tracks.isEmpty
                                 ? null
                                 : () {
                                     final queue = _mapTracksToAudioQueue(playlist.tracks);
-                                    final random = Random();
-                                    final randomIndex = random.nextInt(queue.length);
-                                    final notifier = ref.read(playerControllerProvider.notifier);
-                                    if (!playerState.isShuffleEnabled) {
-                                      notifier.toggleShuffle();
-                                    }
-                                    notifier.playQueue(queue, initialIndex: randomIndex);
+                                    final shuffledTracks = List<AudioTrackModel>.from(queue)..shuffle();
+                                    ref.read(playerControllerProvider.notifier).playQueue(shuffledTracks, initialIndex: 0);
                                     FullPlayerScreen.show(context);
                                   },
-                            icon: Icon(
-                              Icons.shuffle,
-                              color: playerState.isShuffleEnabled ? AppColors.primary : AppColors.textPrimary,
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.divider),
+                              padding: const EdgeInsets.all(14),
+                              shape: const CircleBorder(),
                             ),
-                            style: IconButton.styleFrom(
-                              backgroundColor: playerState.isShuffleEnabled
-                                  ? AppColors.primary.withValues(alpha: 0.2)
-                                  : AppColors.surface,
-                              padding: const EdgeInsets.all(12),
-                            ),
+                            child: const Icon(Icons.shuffle_rounded, color: AppColors.textPrimary, size: 22),
                           ),
                         ],
                       ),

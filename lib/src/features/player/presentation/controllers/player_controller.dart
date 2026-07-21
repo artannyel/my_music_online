@@ -30,6 +30,8 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
   PlayerController(this._service, this._audioHandler) : super(const PlayerStateModel()) {
     _initSubscriptions();
+    _audioHandler.onSkipToNext = () => nextTrack();
+    _audioHandler.onSkipToPrevious = () => previousTrack();
   }
 
   void _updateNotification(AudioTrackModel track) {

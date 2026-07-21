@@ -70,6 +70,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
       floatingActionButton: _showFab && (albumAsync.value?.tracks.isNotEmpty ?? false)
           ? FloatingActionButton(
               backgroundColor: AppColors.primary,
+              shape: const CircleBorder(),
               onPressed: () {
                 final album = albumAsync.value!;
                 ref.read(playerControllerProvider.notifier).playQueue(album.tracks, initialIndex: 0);

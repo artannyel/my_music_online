@@ -33,6 +33,10 @@ class AppAudioHandler extends BaseAudioHandler with SeekHandler {
           MediaAction.seek,
           MediaAction.seekForward,
           MediaAction.seekBackward,
+          MediaAction.skipToNext,
+          MediaAction.skipToPrevious,
+          MediaAction.play,
+          MediaAction.pause,
         },
         androidCompactActionIndices: const [0, 1, 2],
         processingState: isCompleted
