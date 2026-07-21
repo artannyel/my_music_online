@@ -1,4 +1,5 @@
 import 'package:dart_ytmusic_api/dart_ytmusic_api.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt_explode;
 import '../../../player/domain/models/player_state_model.dart';
 import '../../domain/models/album_model.dart';
 import '../../domain/repositories/album_repository.dart';
@@ -55,31 +56,33 @@ class YtMusicAlbumRepository implements AlbumRepository {
         tracks: mappedTracks,
       );
     } catch (e) {
-      // Fallback 1: Tentar como Playlist
+      // Fallback 1: Tentar como Playlist via youtube_explode_dart (ideal para listas OLAK)
       try {
-        final playlistFull = await _ytMusic.getPlaylist(cleanId);
-        final playlistVideos = await _ytMusic.getPlaylistVideos(cleanId);
+        final yt = yt_explode.YoutubeExplode();
+        final playlist = await yt.playlists.get(cleanId);
+        final videos = await yt.playlists.getVideos(cleanId).toList();
+        yt.close();
 
-        final coverUrl = playlistFull.thumbnails.isNotEmpty ? playlistFull.thumbnails.last.url : null;
+        final coverUrl = playlist.thumbnails.highResUrl;
         
-        final mappedTracks = playlistVideos.map((video) {
-          final trackThumb = video.thumbnails.isNotEmpty ? video.thumbnails.last.url : coverUrl;
+        final mappedTracks = videos.map((video) {
+          final trackThumb = video.thumbnails.highResUrl;
           return AudioTrackModel(
-            id: video.videoId,
-            videoId: video.videoId,
-            title: video.name,
-            artistName: video.artist.name.isNotEmpty ? video.artist.name : playlistFull.artist.name,
-            albumName: playlistFull.name,
+            id: video.id.value,
+            videoId: video.id.value,
+            title: video.title,
+            artistName: video.author,
+            albumName: playlist.title,
             thumbnailUrl: trackThumb,
-            duration: video.duration != null ? Duration(seconds: video.duration!) : null,
+            duration: video.duration,
           );
         }).toList();
 
         return AlbumModel(
-          id: playlistFull.playlistId,
-          title: playlistFull.name,
-          artistName: playlistFull.artist.name,
-          artistId: playlistFull.artist.artistId,
+          id: playlist.id.value,
+          title: playlist.title,
+          artistName: playlist.author,
+          artistId: null,
           coverUrl: coverUrl,
           year: null,
           trackCount: mappedTracks.length,
