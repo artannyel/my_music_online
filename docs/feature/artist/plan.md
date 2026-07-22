@@ -26,7 +26,7 @@ lib/src/features/artist/
 ```
 
 ## 4. Divisão de Tasks
-- [ ] [Task 1: Domain - Modelo ArtistModel](./task-1-domain-models.md)
-- [ ] [Task 2: Data - Repositório ArtistRepository (dart_ytmusic_api)](./task-2-artist-repository.md)
-- [ ] [Task 3: Presentation - Controller em Riverpod](./task-3-artist-riverpod-controller.md)
-- [ ] [Task 4: Presentation - Interface de Usuário ArtistDetailScreen (Stitch)](./task-4-artist-detail-screen-ui.md)
+- [x] [Task 1: Domain - Modelo ArtistModel](./task-1-domain-models.md)
+- [x] [Task 2: Data - Repositório ArtistRepository (dart_ytmusic_api)](./task-2-artist-repository.md)
+- [x] [Task 3: Presentation - Controller em Riverpod](./task-3-artist-riverpod-controller.md)
+- [x] [Task 4: Presentation - Interface de Usuário ArtistDetailScreen (Stitch)](./task-4-artist-detail-screen-ui.md)
