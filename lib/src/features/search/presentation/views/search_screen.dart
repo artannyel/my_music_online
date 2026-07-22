@@ -342,7 +342,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 break;
               case SearchFilterType.playlist:
                 final playlistId = item.playlistId ?? item.id;
-                context.push('/playlist/$playlistId');
+                context.push('/playlist/$playlistId', extra: item.url);
                 break;
               case SearchFilterType.all:
                 break;

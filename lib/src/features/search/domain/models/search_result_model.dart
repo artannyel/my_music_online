@@ -12,6 +12,7 @@ class SearchResultModel {
   final String? albumId;
   final String? artistId;
   final String? playlistId;
+  final String? url;
 
   const SearchResultModel({
     required this.id,
@@ -24,5 +25,6 @@ class SearchResultModel {
     this.albumId,
     this.artistId,
     this.playlistId,
+    this.url,
   });
 }

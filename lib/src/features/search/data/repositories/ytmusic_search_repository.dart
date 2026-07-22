@@ -188,6 +188,7 @@ class YtMusicSearchRepository implements SearchRepository {
             thumbnailUrl: thumb,
             type: SearchFilterType.album,
             albumId: id,
+            url: url,
           ),
         );
       } else if (type == SearchFilterType.artist) {
@@ -200,6 +201,7 @@ class YtMusicSearchRepository implements SearchRepository {
             thumbnailUrl: thumb,
             type: SearchFilterType.artist,
             artistId: id,
+            url: url,
           ),
         );
       } else if (type == SearchFilterType.playlist) {
@@ -212,6 +214,7 @@ class YtMusicSearchRepository implements SearchRepository {
             thumbnailUrl: thumb,
             type: SearchFilterType.playlist,
             playlistId: id,
+            url: url,
           ),
         );
       } else {
@@ -226,19 +229,20 @@ class YtMusicSearchRepository implements SearchRepository {
             duration: (item is newpipe.StreamInfoItem && item.duration != null)
                 ? Duration(seconds: item.duration!)
                 : null,
+            url: url,
           ),
         );
       }
     }
 
-    for (final song in result.videos) {
-      processItem(song, song.url);
+    for (final ch in result.channels) {
+      processItem(ch, ch.url);
     }
     for (final pl in result.playlists) {
       processItem(pl, pl.url);
     }
-    for (final ch in result.channels) {
-      processItem(ch, ch.url);
+    for (final song in result.videos) {
+      processItem(song, song.url);
     }
     return mapped;
   }

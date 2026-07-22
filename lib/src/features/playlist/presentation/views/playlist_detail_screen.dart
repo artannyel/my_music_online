@@ -14,10 +14,12 @@ import '../controllers/playlist_controller.dart';
 /// ou armazenadas (Firestore), permitindo salvar na biblioteca ou criar uma cópia customizada.
 class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final String playlistId;
+  final String? url;
 
   const PlaylistDetailScreen({
     super.key,
     required this.playlistId,
+    this.url,
   });
 
   @override
@@ -81,7 +83,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final playlistAsync = ref.watch(playlistDetailsProvider(widget.playlistId));
+    final playlistAsync = ref.watch(playlistDetailsProvider((id: widget.playlistId, url: widget.url)));
     final currentUser = ref.watch(currentUserProvider);
     final playerState = ref.watch(playerControllerProvider);
 
@@ -93,7 +95,12 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
           ? FloatingActionButton(
               onPressed: () {
                 final queue = _mapTracksToAudioQueue(playlist.tracks);
-                ref.read(playerControllerProvider.notifier).playQueue(queue);
+                ref.read(playerControllerProvider.notifier).playQueue(
+                  queue, 
+                  isRadioMode: playlist.isMix,
+                  mixUrl: playlist.isMix ? widget.url : null,
+                  mixNextPageToken: playlist.isMix ? playlist.nextPageUrl : null,
+                );
                 FullPlayerScreen.show(context);
               },
               backgroundColor: AppColors.primary,
@@ -308,16 +315,42 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                         ),
                       ],
                       const SizedBox(height: 8),
-                      Text(
-                        totalDurationStr.isNotEmpty
-                            ? '${playlist.tracks.length} músicas • $totalDurationStr'
-                            : '${playlist.tracks.length} músicas',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
+                      if (playlist.isMix)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.all_inclusive, color: AppColors.primary, size: 14),
+                              SizedBox(width: 4),
+                              Text(
+                                'Mix Infinito',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                      if (!playlist.isMix)
+                        Text(
+                          totalDurationStr.isNotEmpty
+                              ? '${playlist.tracks.length} músicas • $totalDurationStr'
+                              : '${playlist.tracks.length} músicas',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       const SizedBox(height: 20),
                       Row(
                         children: [
@@ -327,7 +360,13 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                   ? null
                                   : () {
                                       final queue = _mapTracksToAudioQueue(playlist.tracks);
-                                      ref.read(playerControllerProvider.notifier).playQueue(queue, initialIndex: 0);
+                                      ref.read(playerControllerProvider.notifier).playQueue(
+                                        queue, 
+                                        initialIndex: 0, 
+                                        isRadioMode: playlist.isMix,
+                                        mixUrl: playlist.isMix ? widget.url : null,
+                                        mixNextPageToken: playlist.isMix ? playlist.nextPageUrl : null,
+                                      );
                                       FullPlayerScreen.show(context);
                                     },
                               icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 26),
@@ -346,7 +385,13 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                 : () {
                                     final queue = _mapTracksToAudioQueue(playlist.tracks);
                                     final shuffledTracks = List<AudioTrackModel>.from(queue)..shuffle();
-                                    ref.read(playerControllerProvider.notifier).playQueue(shuffledTracks, initialIndex: 0);
+                                    ref.read(playerControllerProvider.notifier).playQueue(
+                                      shuffledTracks, 
+                                      initialIndex: 0, 
+                                      isRadioMode: playlist.isMix,
+                                      mixUrl: playlist.isMix ? widget.url : null,
+                                      mixNextPageToken: playlist.isMix ? playlist.nextPageUrl : null,
+                                    );
                                     FullPlayerScreen.show(context);
                                   },
                             style: OutlinedButton.styleFrom(
@@ -457,13 +502,15 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                     IconButton(
                                       icon: const Icon(Icons.close, color: AppColors.textMuted, size: 20),
                                       onPressed: () async {
-                                        await ref
+                                        final result = await ref
                                             .read(playlistMutationsProvider.notifier)
                                             .removeTrackFromPlaylist(
                                               playlistId: playlist.id,
                                               trackId: track.id,
                                             );
-                                        ref.invalidate(playlistDetailsProvider(widget.playlistId));
+                                        if (result == true) {
+                                          ref.invalidate(playlistDetailsProvider((id: widget.playlistId, url: widget.url)));
+                                        }
                                       },
                                     ),
                                 ],
@@ -473,7 +520,13 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                   FullPlayerScreen.show(context);
                                 } else {
                                   final queue = _mapTracksToAudioQueue(playlist.tracks);
-                                  ref.read(playerControllerProvider.notifier).playQueue(queue, initialIndex: index);
+                                  ref.read(playerControllerProvider.notifier).playQueue(
+                                    queue, 
+                                    initialIndex: index, 
+                                    isRadioMode: playlist.isMix,
+                                    mixUrl: playlist.isMix ? widget.url : null,
+                                    mixNextPageToken: playlist.isMix ? playlist.nextPageUrl : null,
+                                  );
                                   FullPlayerScreen.show(context);
                                 }
                               },

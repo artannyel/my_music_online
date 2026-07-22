@@ -9,6 +9,8 @@ import '../../data/services/audio_player_service.dart';
 import '../../data/services/app_audio_handler.dart';
 import '../../data/services/audio_handler_provider.dart';
 import '../../domain/models/player_state_model.dart';
+import '../../../playlist/domain/repositories/playlist_repository.dart';
+import '../../../playlist/presentation/controllers/playlist_controller.dart';
 
 /// Provider singleton para a instância do AudioPlayerService.
 final audioPlayerServiceProvider = Provider<AudioPlayerService>((ref) {
@@ -21,14 +23,15 @@ final audioPlayerServiceProvider = Provider<AudioPlayerService>((ref) {
 class PlayerController extends StateNotifier<PlayerStateModel> {
   final AudioPlayerService _service;
   final AppAudioHandler _audioHandler;
+  final PlaylistRepository _playlistRepository;
   final YTMusic _ytMusic = YTMusic();
   bool _isYtMusicInitialized = false;
 
   StreamSubscription? _playerStateSubscription;
   StreamSubscription? _positionSubscription;
-  StreamSubscription? _durationSubscription;
+  StreamSubscription<Duration?>? _durationSubscription;
 
-  PlayerController(this._service, this._audioHandler) : super(const PlayerStateModel()) {
+  PlayerController(this._service, this._audioHandler, this._playlistRepository) : super(const PlayerStateModel()) {
     _initSubscriptions();
     _audioHandler.onSkipToNext = () => nextTrack();
     _audioHandler.onSkipToPrevious = () => previousTrack();
@@ -87,6 +90,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       isBuffering: true,
       position: Duration.zero,
       isRadioMode: true,
+      clearMix: true,
     );
 
     try {
@@ -109,6 +113,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       isBuffering: true,
       position: Duration.zero,
       isRadioMode: false,
+      clearMix: true,
     );
 
     try {
@@ -121,7 +126,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
   }
 
   /// Inicia a reprodução de uma lista/fila completa de faixas a partir de um índice
-  Future<void> playQueue(List<AudioTrackModel> queue, {int initialIndex = 0}) async {
+  Future<void> playQueue(List<AudioTrackModel> queue, {int initialIndex = 0, bool isRadioMode = false, String? mixUrl, String? mixNextPageToken}) async {
     if (queue.isEmpty) return;
 
     final targetIndex = initialIndex.clamp(0, queue.length - 1);
@@ -133,7 +138,10 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       currentTrack: targetTrack,
       isBuffering: true,
       position: Duration.zero,
-      isRadioMode: false,
+      isRadioMode: isRadioMode,
+      mixUrl: mixUrl,
+      mixNextPageToken: mixNextPageToken,
+      clearMix: mixUrl == null,
     );
 
     try {
@@ -161,8 +169,12 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       position: Duration.zero,
     );
 
-    // Se estiver no modo Rádio e estiver nos últimos 3 elementos, busca mais faixas
-    if (state.isRadioMode && targetIndex >= state.queue.length - 3) {
+    // Se estiver no modo Mix e estiver nos últimos 3 elementos, busca a próxima página do Mix
+    if (state.mixUrl != null && state.mixNextPageToken != null && targetIndex >= state.queue.length - 3) {
+      _fetchAndAppendMixNextPage();
+    }
+    // Senão, se estiver no modo Rádio e estiver nos últimos 3 elementos, busca mais faixas
+    else if (state.isRadioMode && state.mixUrl == null && targetIndex >= state.queue.length - 3) {
       _fetchAndAppendUpNexts(targetTrack.videoId);
     }
 
@@ -172,6 +184,45 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     } catch (e, st) {
       debugPrint('[PlayerController] Erro capturado em playTrackFromQueueIndex: $e\n$st');
       state = state.copyWith(isBuffering: false, isPlaying: false);
+    }
+  }
+
+  bool _isFetchingMix = false;
+
+  /// Busca a próxima página do Mix Infinito e anexa à fila
+  Future<void> _fetchAndAppendMixNextPage() async {
+    final url = state.mixUrl;
+    final token = state.mixNextPageToken;
+    if (url == null || token == null || _isFetchingMix) return;
+
+    _isFetchingMix = true;
+
+    try {
+      final (tracks: newTracks, nextPageUrl: newToken) = await _playlistRepository.getMixNextPage(url, token);
+      
+      if (newTracks.isNotEmpty) {
+        final audioTracks = newTracks.map((t) => AudioTrackModel(
+          id: t.id,
+          videoId: t.videoId ?? t.id,
+          title: t.title,
+          artistName: t.artistName,
+          thumbnailUrl: t.thumbnailUrl,
+          duration: t.duration,
+        )).where((t) => !state.queue.any((qTrack) => qTrack.videoId == t.videoId)).toList();
+        
+        if (audioTracks.isNotEmpty) {
+          final updatedQueue = List<AudioTrackModel>.from(state.queue)..addAll(audioTracks);
+          state = state.copyWith(queue: updatedQueue, mixNextPageToken: newToken);
+        } else {
+          state = state.copyWith(mixNextPageToken: newToken);
+        }
+      } else {
+        state = state.copyWith(mixNextPageToken: newToken);
+      }
+    } catch (e, st) {
+      debugPrint('[PlayerController] Erro ao buscar próxima página do Mix: $e\n$st');
+    } finally {
+      _isFetchingMix = false;
     }
   }
 
@@ -250,8 +301,19 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
     int nextIndex = state.currentIndex + 1;
 
-    // Se estiver no modo Rádio Automix
-    if (state.isRadioMode) {
+    // Se estiver no modo Mix Infinito
+    if (state.mixUrl != null && state.mixNextPageToken != null) {
+      if (nextIndex >= state.queue.length - 2) {
+        if (nextIndex >= state.queue.length) {
+          state = state.copyWith(isBuffering: true);
+          await _fetchAndAppendMixNextPage();
+        } else {
+          _fetchAndAppendMixNextPage();
+        }
+      }
+    }
+    // Senão, se estiver no modo Rádio Automix
+    else if (state.isRadioMode && state.mixUrl == null) {
       // Se chegarmos perto ou no final da fila, busca mais faixas imediatamente!
       if (nextIndex >= state.queue.length - 2) {
         final lastVideoId = state.queue.last.videoId;
@@ -371,5 +433,6 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 final playerControllerProvider = StateNotifierProvider<PlayerController, PlayerStateModel>((ref) {
   final service = ref.watch(audioPlayerServiceProvider);
   final handler = ref.watch(audioHandlerProvider);
-  return PlayerController(service, handler);
+  final playlistRepo = ref.watch(playlistRepositoryProvider);
+  return PlayerController(service, handler, playlistRepo);
 });

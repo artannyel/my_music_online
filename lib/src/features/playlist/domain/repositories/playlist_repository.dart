@@ -6,7 +6,10 @@ abstract class PlaylistRepository {
   Stream<List<PlaylistModel>> getUserPlaylists(String userId);
 
   /// Obtém os detalhes completos de uma playlist pelo ID (Firestore ou YTMusic).
-  Future<PlaylistModel?> getPlaylistById(String playlistId);
+  Future<PlaylistModel?> getPlaylistById(String playlistId, [String? url]);
+
+  /// Carrega a próxima página de um Mix infinito.
+  Future<({List<PlaylistTrackModel> tracks, String? nextPageUrl})> getMixNextPage(String url, String serializedToken);
 
   /// Cria uma nova playlist personalizada no Firestore (requer autenticação).
   Future<PlaylistModel> createPlaylist({
