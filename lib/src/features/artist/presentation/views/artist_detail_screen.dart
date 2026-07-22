@@ -20,6 +20,7 @@ class ArtistDetailScreen extends ConsumerStatefulWidget {
 class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0.0;
+  bool _isPlayingLoading = false;
 
   @override
   void initState() {
@@ -42,12 +43,17 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Cutuca o provider para carregar as 100 músicas no fundo
+    ref.watch(artistSongsProvider(widget.artistId));
+    
     final artistAsync = ref.watch(artistDetailsProvider);
     final playerState = ref.watch(playerControllerProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: artistAsync.when(
+      body: Stack(
+        children: [
+          artistAsync.when(
         data: (artist) {
           if (artist == null) {
             return _buildErrorState('Artista não encontrado.');
@@ -138,8 +144,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                               children: [
                                 ElevatedButton.icon(
                                   onPressed: artist.topSongs.isEmpty ? null : () {
-                                    ref.read(playerControllerProvider.notifier).playQueue(artist.topSongs, initialIndex: 0);
-                                    FullPlayerScreen.show(context);
+                                    _playSongs(artist.topSongs, 0);
                                   },
                                   icon: const Icon(Icons.play_arrow_rounded, color: AppColors.background),
                                   label: const Text(
@@ -260,7 +265,52 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (err, st) => _buildErrorState('Erro ao carregar artista: $err'),
       ),
+      if (_isPlayingLoading)
+        Container(
+          color: Colors.black54,
+          child: const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+        ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _playSongs(List<AudioTrackModel> top5, int initialIndex) async {
+    setState(() => _isPlayingLoading = true);
+    
+    try {
+      // Espera as 100 músicas terminarem de carregar (geralmente já carregou no fundo)
+      final allSongs = await ref.read(artistSongsProvider(widget.artistId).future);
+      
+      int newIndex = 0;
+      if (initialIndex < top5.length) {
+        final targetSongId = top5[initialIndex].id;
+        final foundIndex = allSongs.indexWhere((s) => s.id == targetSongId);
+        
+        if (foundIndex != -1) {
+          newIndex = foundIndex;
+        } else {
+          // Fallback: se a música do Top 5 não estiver nas 100 por algum motivo, insere ela
+          final mutableAllSongs = List<AudioTrackModel>.from(allSongs);
+          mutableAllSongs.insert(0, top5[initialIndex]);
+          ref.read(playerControllerProvider.notifier).playQueue(mutableAllSongs, initialIndex: 0);
+          if (mounted) FullPlayerScreen.show(context);
+          setState(() => _isPlayingLoading = false);
+          return;
+        }
+      }
+      
+      ref.read(playerControllerProvider.notifier).playQueue(allSongs, initialIndex: newIndex);
+      if (mounted) FullPlayerScreen.show(context);
+    } catch (e) {
+      // Se falhar (sem internet, erro de api), toca apenas o top 5
+      ref.read(playerControllerProvider.notifier).playQueue(top5, initialIndex: initialIndex);
+      if (mounted) FullPlayerScreen.show(context);
+    } finally {
+      if (mounted) setState(() => _isPlayingLoading = false);
+    }
   }
 
   Widget _buildErrorState(String message) {
@@ -355,10 +405,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           trailing: const Icon(Icons.more_vert, color: AppColors.textMuted),
-          onTap: () {
-            ref.read(playerControllerProvider.notifier).playQueue(songs, initialIndex: index);
-            FullPlayerScreen.show(context);
-          },
+          onTap: () => _playSongs(songs, index),
         );
       },
     );
