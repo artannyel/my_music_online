@@ -67,7 +67,8 @@ class AppRouter {
             path: RouteNames.playlistDetail,
             builder: (BuildContext context, GoRouterState state) {
               final playlistId = state.pathParameters['id'] ?? '';
-              return PlaylistDetailScreen(playlistId: playlistId);
+              final url = state.extra as String?;
+              return PlaylistDetailScreen(playlistId: playlistId, url: url);
             },
           ),
           GoRoute(

@@ -59,6 +59,8 @@ class PlaylistModel {
   final bool isPublic;
   final PlaylistType type;
   final String? originalYtPlaylistId;
+  final bool isMix;
+  final String? nextPageUrl;
 
   const PlaylistModel({
     required this.id,
@@ -71,6 +73,8 @@ class PlaylistModel {
     this.isPublic = true,
     this.type = PlaylistType.custom,
     this.originalYtPlaylistId,
+    this.isMix = false,
+    this.nextPageUrl,
   });
 
   factory PlaylistModel.fromJson(Map<String, dynamic> json) {
@@ -93,6 +97,8 @@ class PlaylistModel {
         orElse: () => PlaylistType.custom,
       ),
       originalYtPlaylistId: json['originalYtPlaylistId'] as String?,
+      isMix: json['isMix'] as bool? ?? false,
+      nextPageUrl: json['nextPageUrl'] as String?,
     );
   }
 
@@ -108,6 +114,8 @@ class PlaylistModel {
       'isPublic': isPublic,
       'type': type.name,
       'originalYtPlaylistId': originalYtPlaylistId,
+      'isMix': isMix,
+      'nextPageUrl': nextPageUrl,
     };
   }
 

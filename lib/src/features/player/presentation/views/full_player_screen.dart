@@ -342,7 +342,20 @@ class FullPlayerScreen extends ConsumerWidget {
                             'Fila de Reprodução',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                           ),
-                          if (currentState.isRadioMode) ...[
+                          if (currentState.mixUrl != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'Mix Infinito',
+                                style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ] else if (currentState.isRadioMode) ...[
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

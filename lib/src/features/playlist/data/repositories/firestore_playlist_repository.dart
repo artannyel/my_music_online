@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dart_ytmusic_api/dart_ytmusic_api.dart';
+import 'package:flutter/foundation.dart';
+import 'package:newpipeextractor_dart/newpipeextractor_dart.dart' as newpipe;
 import '../../domain/models/playlist_model.dart';
 import '../../domain/repositories/playlist_repository.dart';
 
@@ -36,7 +39,7 @@ class FirestorePlaylistRepository implements PlaylistRepository {
   }
 
   @override
-  Future<PlaylistModel?> getPlaylistById(String playlistId) async {
+  Future<PlaylistModel?> getPlaylistById(String playlistId, [String? url]) async {
     String ytSearchId = playlistId;
     PlaylistModel? firestorePlaylist;
 
@@ -229,7 +232,123 @@ class FirestorePlaylistRepository implements PlaylistRepository {
       } catch (_) {}
     } catch (_) {}
 
+    if (url != null && url.isNotEmpty) {
+      try {
+        final rawMix = await newpipe.PlaylistExtractor.getPlaylistDetails(url);
+        
+        final isMix = rawMix.playlistType == newpipe.PlaylistType.mixStream;
+        
+        final streamsTuple = await newpipe.PlaylistExtractor.getPlaylistStreams(url);
+        
+        List<PlaylistTrackModel> tracks = streamsTuple.items.map((s) {
+          String? thumb;
+          if (s.thumbnails.isNotEmpty) {
+            thumb = s.thumbnails.last;
+          }
+          String? videoId;
+          if (s.url != null && s.url!.contains('v=')) {
+            videoId = s.url!.split('v=').last.split('&').first;
+          }
+          return PlaylistTrackModel(
+            id: videoId ?? s.url ?? '',
+            title: s.name ?? '',
+            artistName: s.uploaderName ?? '',
+            thumbnailUrl: thumb,
+            videoId: videoId ?? s.url,
+            duration: s.duration != null 
+                ? Duration(seconds: s.duration!) 
+                : null,
+          );
+        }).toList();
+
+        String? coverUrl;
+        if (rawMix.thumbnails.isNotEmpty) {
+          coverUrl = rawMix.thumbnails.last;
+        }
+
+        String? serializedToken;
+        final nextToken = streamsTuple.next;
+        if (nextToken != null) {
+          serializedToken = jsonEncode({
+            if (nextToken.url != null) 'url': nextToken.url,
+            if (nextToken.id != null) 'id': nextToken.id,
+            if (nextToken.ids != null) 'ids': nextToken.ids,
+            if (nextToken.cookies != null) 'cookies': nextToken.cookies,
+            if (nextToken.body != null) 'body': base64Encode(nextToken.body!),
+          });
+        }
+
+        return PlaylistModel(
+          id: firestorePlaylist?.id ?? playlistId,
+          title: firestorePlaylist?.title ?? rawMix.name ?? 'Mix',
+          description: firestorePlaylist?.description ?? 'Playlist Infinita',
+          coverUrl: firestorePlaylist?.coverUrl ?? coverUrl,
+          tracks: tracks,
+          createdAt: firestorePlaylist?.createdAt ?? DateTime.now(),
+          isPublic: true,
+          type: PlaylistType.youtube,
+          originalYtPlaylistId: playlistId,
+          isMix: isMix,
+          nextPageUrl: serializedToken,
+        );
+      } catch (e) {
+        debugPrint('Fallback NewPipe falhou: $e');
+      }
+    }
+
     return firestorePlaylist;
+  }
+
+  @override
+  Future<({List<PlaylistTrackModel> tracks, String? nextPageUrl})> getMixNextPage(String url, String serializedToken) async {
+    try {
+      final tokenMap = jsonDecode(serializedToken) as Map<String, dynamic>;
+      final pageToken = newpipe.PageToken(
+        url: tokenMap['url'] as String?,
+        id: tokenMap['id'] as String?,
+        ids: (tokenMap['ids'] as List<dynamic>?)?.map((e) => e as String).toList(),
+        cookies: (tokenMap['cookies'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v as String)),
+        body: tokenMap['body'] != null ? base64Decode(tokenMap['body'] as String) : null,
+      );
+
+      final streamsTuple = await newpipe.PlaylistExtractor.getPlaylistNextPage(url, pageToken);
+      
+      final tracks = streamsTuple.items.map((s) {
+        String? thumb;
+        if (s.thumbnails.isNotEmpty) {
+          thumb = s.thumbnails.last;
+        }
+        String? videoId;
+        if (s.url != null && s.url!.contains('v=')) {
+          videoId = s.url!.split('v=').last.split('&').first;
+        }
+        return PlaylistTrackModel(
+          id: videoId ?? s.url ?? '',
+          title: s.name ?? '',
+          artistName: s.uploaderName ?? '',
+          thumbnailUrl: thumb,
+          videoId: videoId ?? s.url,
+          duration: s.duration != null ? Duration(seconds: s.duration!) : null,
+        );
+      }).toList();
+
+      String? newSerializedToken;
+      final nextToken = streamsTuple.next;
+      if (nextToken != null) {
+        newSerializedToken = jsonEncode({
+          if (nextToken.url != null) 'url': nextToken.url,
+          if (nextToken.id != null) 'id': nextToken.id,
+          if (nextToken.ids != null) 'ids': nextToken.ids,
+          if (nextToken.cookies != null) 'cookies': nextToken.cookies,
+          if (nextToken.body != null) 'body': base64Encode(nextToken.body!),
+        });
+      }
+
+      return (tracks: tracks, nextPageUrl: newSerializedToken);
+    } catch (e) {
+      debugPrint('Falha ao carregar próxima página do Mix: $e');
+      return (tracks: <PlaylistTrackModel>[], nextPageUrl: null);
+    }
   }
 
   @override

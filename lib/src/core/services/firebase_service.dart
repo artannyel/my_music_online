@@ -9,9 +9,7 @@ class FirebaseService {
     try {
       await Firebase.initializeApp();
     } catch (e) {
-      if (kDebugMode) {
-        print('Firebase init notice: $e');
-      }
+      debugPrint('Firebase init notice: $e');
     }
   }
 }

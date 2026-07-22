@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/firestore_playlist_repository.dart';
 import '../../domain/models/playlist_model.dart';
@@ -14,10 +15,17 @@ final userPlaylistsStreamProvider = StreamProvider.family<List<PlaylistModel>, S
   return repository.getUserPlaylists(userId);
 });
 
-/// Family FutureProvider que carrega os detalhes e faixas de uma playlist pelo ID (YouTube ou Firestore).
-final playlistDetailsProvider = FutureProvider.family<PlaylistModel?, String>((ref, playlistId) async {
-  final repository = ref.watch(playlistRepositoryProvider);
-  return repository.getPlaylistById(playlistId);
+/// Controller para gerenciar os detalhes da playlist e carregar mais faixas (Mix).
+class PlaylistDetailsNotifier extends AutoDisposeFamilyAsyncNotifier<PlaylistModel?, ({String id, String? url})> {
+  @override
+  FutureOr<PlaylistModel?> build(({String id, String? url}) arg) async {
+    final repository = ref.watch(playlistRepositoryProvider);
+    return repository.getPlaylistById(arg.id, arg.url);
+  }
+}
+
+final playlistDetailsProvider = AsyncNotifierProvider.autoDispose.family<PlaylistDetailsNotifier, PlaylistModel?, ({String id, String? url})>(() {
+  return PlaylistDetailsNotifier();
 });
 
 /// Family FutureProvider para checar se uma playlist do YouTube está salva na biblioteca do usuário.
