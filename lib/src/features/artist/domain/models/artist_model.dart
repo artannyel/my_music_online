@@ -12,6 +12,7 @@ class ArtistModel {
   final List<AlbumModel> albums;
   final List<AlbumModel> singles;
   final List<PlaylistModel> featuredOn;
+  final List<PlaylistModel> artistPlaylists;
   final List<ArtistModel> similarArtists;
 
   const ArtistModel({
@@ -24,6 +25,7 @@ class ArtistModel {
     this.albums = const [],
     this.singles = const [],
     this.featuredOn = const [],
+    this.artistPlaylists = const [],
     this.similarArtists = const [],
   });
 
@@ -37,6 +39,7 @@ class ArtistModel {
     List<AlbumModel>? albums,
     List<AlbumModel>? singles,
     List<PlaylistModel>? featuredOn,
+    List<PlaylistModel>? artistPlaylists,
     List<ArtistModel>? similarArtists,
   }) {
     return ArtistModel(
@@ -49,6 +52,7 @@ class ArtistModel {
       albums: albums ?? this.albums,
       singles: singles ?? this.singles,
       featuredOn: featuredOn ?? this.featuredOn,
+      artistPlaylists: artistPlaylists ?? this.artistPlaylists,
       similarArtists: similarArtists ?? this.similarArtists,
     );
   }

@@ -231,6 +231,16 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                         _buildPlaylistsCarousel(artist.featuredOn),
                       ],
 
+                      // Playlists do Artista (Extraídas dos similares)
+                      if (artist.artistPlaylists.isNotEmpty) ...[
+                        _buildSectionHeader(
+                          title: 'Playlists de ${artist.name}',
+                          showMore: artist.artistPlaylists.length >= 10,
+                          onShowMore: () {},
+                        ),
+                        _buildPlaylistsCarousel(artist.artistPlaylists),
+                      ],
+
                       // Artistas Semelhantes
                       if (artist.similarArtists.isNotEmpty) ...[
                         _buildSectionHeader(
@@ -415,7 +425,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
         itemBuilder: (context, index) {
           final item = items[index];
           return GestureDetector(
-            onTap: () => context.push('/playlist/${item.id}', extra: {'url': null}),
+            onTap: () => context.push('/playlist/${item.id}'),
             child: SizedBox(
               width: 140,
               child: Column(

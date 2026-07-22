@@ -69,11 +69,26 @@ class YtMusicArtistRepository implements ArtistRepository {
           createdAt: DateTime.now(),
           isPublic: true,
         )).toList(),
-        similarArtists: artistFull.similarArtists.map((sa) => ArtistModel(
-          id: sa.artistId,
-          name: sa.name,
-          avatarUrl: sa.thumbnails.isNotEmpty ? sa.thumbnails.last.url : null,
-        )).toList(),
+        artistPlaylists: artistFull.similarArtists
+            .where((sa) => sa.artistId.startsWith('VL') || sa.artistId.startsWith('PL'))
+            .map((p) => PlaylistModel(
+                  id: p.artistId,
+                  title: p.name,
+                  userId: artistFull.name,
+                  coverUrl: p.thumbnails.isNotEmpty ? p.thumbnails.last.url : null,
+                  tracks: const [],
+                  createdAt: DateTime.now(),
+                  isPublic: true,
+                ))
+            .toList(),
+        similarArtists: artistFull.similarArtists
+            .where((sa) => sa.artistId.startsWith('UC') || sa.artistId.startsWith('HC'))
+            .map((sa) => ArtistModel(
+                  id: sa.artistId,
+                  name: sa.name,
+                  avatarUrl: sa.thumbnails.isNotEmpty ? sa.thumbnails.last.url : null,
+                ))
+            .toList(),
       );
     } catch (e) {
       return null;
