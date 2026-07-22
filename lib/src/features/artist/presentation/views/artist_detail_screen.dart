@@ -230,7 +230,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                       if (artist.featuredOn.isNotEmpty) ...[
                         _buildSectionHeader(
                           title: 'Incluído em',
-                          showMore: artist.featuredOn.length >= 10,
+                          showMore: false,
                           onShowMore: () {},
                         ),
                         _buildPlaylistsCarousel(artist.featuredOn),
@@ -240,7 +240,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                       if (artist.artistPlaylists.isNotEmpty) ...[
                         _buildSectionHeader(
                           title: 'Playlists de ${artist.name}',
-                          showMore: artist.artistPlaylists.length >= 10,
+                          showMore: false,
                           onShowMore: () {},
                         ),
                         _buildPlaylistsCarousel(artist.artistPlaylists),
@@ -250,7 +250,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                       if (artist.similarArtists.isNotEmpty) ...[
                         _buildSectionHeader(
                           title: 'Os fãs também podem gostar de...',
-                          showMore: artist.similarArtists.length >= 10,
+                          showMore: false,
                           onShowMore: () {},
                         ),
                         _buildSimilarArtistsCarousel(artist.similarArtists),
