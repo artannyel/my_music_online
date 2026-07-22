@@ -7,6 +7,9 @@ import 'package:my_music_online/src/features/search/presentation/views/search_sc
 import 'package:my_music_online/src/features/playlist/presentation/views/playlists_screen.dart';
 import 'package:my_music_online/src/features/playlist/presentation/views/playlist_detail_screen.dart';
 import 'package:my_music_online/src/features/album/presentation/views/album_detail_screen.dart';
+import 'package:my_music_online/src/features/artist/presentation/views/artist_detail_screen.dart';
+import 'package:my_music_online/src/features/artist/presentation/views/artist_songs_screen.dart';
+import 'package:my_music_online/src/features/artist/presentation/views/artist_albums_screen.dart';
 import 'package:my_music_online/src/features/settings/presentation/views/cookies_settings_screen.dart';
 import 'package:my_music_online/src/features/auth/presentation/views/login_screen.dart';
 import 'package:my_music_online/src/features/auth/presentation/views/register_screen.dart';
@@ -76,6 +79,32 @@ class AppRouter {
             builder: (BuildContext context, GoRouterState state) {
               final albumId = state.pathParameters['id'] ?? '';
               return AlbumDetailScreen(albumId: albumId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.artistDetail,
+            builder: (BuildContext context, GoRouterState state) {
+              final artistId = state.pathParameters['id'] ?? '';
+              return ArtistDetailScreen(artistId: artistId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.artistSongs,
+            builder: (BuildContext context, GoRouterState state) {
+              final artistId = state.pathParameters['id'] ?? '';
+              return ArtistSongsScreen(artistId: artistId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.artistAlbums,
+            builder: (BuildContext context, GoRouterState state) {
+              final artistId = state.pathParameters['id'] ?? '';
+              final extra = state.extra as Map<String, dynamic>? ?? {};
+              return ArtistAlbumsScreen(
+                artistId: artistId,
+                type: extra['type'] ?? 'albums',
+                initialData: extra['initialData'] ?? const [],
+              );
             },
           ),
           GoRoute(

@@ -8,6 +8,8 @@ class RouteNames {
   static const String playlistDetail = '/playlist/:id';
   static const String albumDetail = '/album/:id';
   static const String artistDetail = '/artist/:id';
+  static const String artistSongs = '/artist/:id/songs';
+  static const String artistAlbums = '/artist/:id/albums';
   static const String player = '/player';
   static const String equalizer = '/equalizer';
   static const String settings = '/settings';
