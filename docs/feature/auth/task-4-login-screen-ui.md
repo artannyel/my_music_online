@@ -7,7 +7,9 @@ Desenvolver a interface gráfica de login com visual escuro elegante baseado nas
 1. Criar `lib/src/features/auth/presentation/views/login_screen.dart`:
    - Logo/Ícone do aplicativo em destaque com efeito neon.
    - Campo de entrada para E-mail e Senha com alternância de visibilidade.
-   - Botão "Entrar" com estado de carregamento (*CircularProgressIndicator*).
+   - Botão "Entrar" (Email/Senha) com estado de carregamento (*CircularProgressIndicator*).
+   - Separador visual "Ou continuar com".
+   - Botão para "Login com Google" com ícone da Google.
    - Link para a tela de "Criar Conta".
    - Exibição de SnackBar para mensagens de erro.
 

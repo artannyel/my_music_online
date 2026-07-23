@@ -7,7 +7,7 @@ Criar os providers do Riverpod para gerenciar o estado reativo de login, cadastr
 1. Criar `lib/src/features/auth/presentation/controllers/auth_controller.dart`:
    - `authRepositoryProvider`: Provider que expõe a instância de `AuthRepository`.
    - `authStateProvider`: `StreamProvider<UserModel?>` que escuta as alterações da sessão em tempo real.
-   - `authControllerProvider`: `StateNotifierProvider` / `NotifierProvider` para executar as ações de login/registro e expor estados de loading/erro.
+   - `authControllerProvider`: `StateNotifierProvider` / `NotifierProvider` para executar as ações de login (com email/senha ou Google)/registro e expor estados de loading/erro.
 
 ## 📋 Arquivos a Modificar / Criar
 - `lib/src/features/auth/presentation/controllers/auth_controller.dart`

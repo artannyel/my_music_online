@@ -1,12 +1,12 @@
 # Plano de Implementação - Feature: Auth (Autenticação)
 
 ## 1. Visão Geral
-A feature `auth` gerencia a autenticação de usuários através do Firebase Auth. Ela é responsável pelo login, cadastro de novos usuários com email/senha, encerramento de sessão (logout) e proteção de rotas privadas do app através do `GoRouter`.
+A feature `auth` gerencia a autenticação de usuários através do Firebase Auth. Ela é responsável pelo login, cadastro de novos usuários com email/senha, login social com Google, encerramento de sessão (logout) e proteção de rotas privadas do app através do `GoRouter`.
 
 ## 2. Referência de Design (Stitch)
 - **Stitch Project**: [https://stitch.withgoogle.com/projects/16430281818792447633](https://stitch.withgoogle.com/projects/16430281818792447633)
 - **Telas**: Login & Registro.
-- **Aparência**: Campos de entrada estilizados em modo escuro (`#12141D`), bordas suaves, botões com gradiente Magenta/Violeta e feedback visual de carregamento.
+- **Aparência**: Campos de entrada estilizados em modo escuro (`#12141D`), bordas suaves, botões com gradiente Magenta/Violeta, botão dedicado para Login com Google e feedback visual de carregamento.
 
 ## 3. Arquitetura da Feature
 ```text

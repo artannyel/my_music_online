@@ -5,8 +5,9 @@ Conectar o aplicativo ao SDK nativo do Firebase Auth, implementando o repositór
 
 ## 🎯 Escopo da Task
 1. Criar `lib/src/features/auth/data/repositories/firebase_auth_repository.dart`.
-2. Mapear retornos de `firebase_auth.User` para `UserModel`.
-3. Tratar exceções conhecidas (`FirebaseAuthException`) com mensagens amigáveis em português (ex: senha fraca, email já cadastrado, credenciais inválidas).
+2. Implementar a lógica de `signInWithGoogle` utilizando o pacote `google_sign_in`.
+3. Mapear retornos de `firebase_auth.User` para `UserModel`.
+4. Tratar exceções conhecidas (`FirebaseAuthException` e erros do Google SignIn) com mensagens amigáveis em português (ex: senha fraca, email já cadastrado, credenciais inválidas, cancelamento de fluxo).
 
 ## 📋 Arquivos a Modificar / Criar
 - `lib/src/features/auth/data/repositories/firebase_auth_repository.dart`
