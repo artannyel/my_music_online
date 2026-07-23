@@ -28,13 +28,13 @@ class PlaylistsScreen extends ConsumerWidget {
           if (user != null)
             IconButton(
               icon: const Icon(Icons.add_circle_outline, color: AppColors.primary, size: 28),
-              onPressed: () => CreatePlaylistDialog.show(context, userId: user.uid),
+              onPressed: () => CreatePlaylistDialog.show(context, userId: user.id),
             ),
         ],
       ),
       body: user == null
           ? _buildGuestView(context)
-          : _buildUserPlaylistsView(context, ref, user.uid),
+          : _buildUserPlaylistsView(context, ref, user.id),
     );
   }
 
@@ -70,7 +70,7 @@ class PlaylistsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Crie listas personalizadas com suas faixas favoritas e sincronize entre todos os seus dispositivos com sua conta do Firebase.',
+              'Crie listas personalizadas com suas faixas favoritas e sincronize entre todos os seus dispositivos com sua conta.',
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,

@@ -127,10 +127,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
           }
 
           final isCustom = playlist.type == PlaylistType.custom;
-          final isOwner = currentUser != null && isCustom && playlist.userId == currentUser.uid;
+          final isOwner = currentUser != null && isCustom && playlist.userId == currentUser.id;
 
           final isSavedAsync = currentUser != null
-              ? ref.watch(isPlaylistSavedProvider((userId: currentUser.uid, playlistId: playlist.id)))
+              ? ref.watch(isPlaylistSavedProvider((userId: currentUser.id, playlistId: playlist.id)))
               : const AsyncValue.data(false);
           final isSaved = isSavedAsync.value ?? false;
 
@@ -174,7 +174,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                           final notifier = ref.read(playlistMutationsProvider.notifier);
                           if (isSaved) {
                             await notifier.unsaveYtPlaylistFromLibrary(
-                              userId: currentUser.uid,
+                              userId: currentUser.id,
                               playlistId: playlist.id,
                             );
                             if (context.mounted) {
@@ -187,7 +187,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                             }
                           } else {
                             await notifier.saveYtPlaylistToLibrary(
-                              userId: currentUser.uid,
+                              userId: currentUser.id,
                               ytPlaylist: playlist,
                             );
                             if (context.mounted) {
@@ -200,7 +200,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                             }
                           }
                           ref.invalidate(isPlaylistSavedProvider);
-                          ref.invalidate(userPlaylistsStreamProvider(currentUser.uid));
+                          ref.invalidate(userPlaylistsStreamProvider(currentUser.id));
                         },
                       ),
                     IconButton(
@@ -217,7 +217,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                         final customCopy = await ref
                             .read(playlistMutationsProvider.notifier)
                             .duplicatePlaylistAsCustom(
-                              userId: currentUser.uid,
+                              userId: currentUser.id,
                               sourcePlaylist: playlist,
                             );
 
