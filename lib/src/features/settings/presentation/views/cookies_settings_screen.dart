@@ -109,7 +109,7 @@ class CookiesSettingsScreen extends ConsumerWidget {
         children: [
           _buildUserCard(user),
           const SizedBox(height: 32),
-          _buildMenuSection(),
+          _buildMenuSection(context),
           const Spacer(),
           _buildLogoutButton(ref, isLoggingOut),
           const SizedBox(height: 20),
@@ -172,7 +172,7 @@ class CookiesSettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMenuSection() {
+  Widget _buildMenuSection(BuildContext context) {
     return Material(
       color: AppColors.surface,
       shape: RoundedRectangleBorder(
@@ -187,7 +187,7 @@ class CookiesSettingsScreen extends ConsumerWidget {
             icon: Icons.cookie_outlined,
             title: 'Cookies do YouTube',
             subtitle: 'Gerenciar arquivo de cookies',
-            onTap: () {},
+            onTap: () => context.push(RouteNames.cookiesManagement),
           ),
           const Divider(color: AppColors.divider, height: 1, indent: 56),
           _buildMenuItem(

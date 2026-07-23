@@ -21,7 +21,7 @@ class AudioPlayerService {
 
     try {
       debugPrint('[AudioPlayerService] Requisitando manifesto AudiosResolver para ${track.videoId}...');
-      final result = await AudiosResolver.fetchSingle(videoId: track.videoId);
+      final result = await AudiosResolver.fetchSingle(videoId: track.videoId, forceRefresh: true);
 
       if (result?.url != null) {
         await _audioPlayer.setUrl(result!.url);

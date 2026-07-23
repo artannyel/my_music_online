@@ -7,12 +7,16 @@ import 'package:my_music_online/src/features/player/data/services/audio_player_s
 import 'package:my_music_online/src/features/player/data/services/app_audio_handler.dart';
 import 'package:my_music_online/src/features/player/data/services/audio_handler_provider.dart';
 import 'package:my_music_online/src/features/player/presentation/controllers/player_controller.dart';
+import 'package:my_music_online/src/features/settings/data/services/yt_cookies_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Inicialização assíncrona do Firebase
   await FirebaseService.initialize();
+
+  // Carrega cookies do Firestore e inicializa YTMusic + CookieExtractor
+  await initializeLibrariesWithCookies();
 
   final audioService = AudioPlayerService();
 

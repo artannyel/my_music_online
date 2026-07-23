@@ -10,6 +10,7 @@ import 'package:my_music_online/src/features/album/presentation/views/album_deta
 import 'package:my_music_online/src/features/artist/presentation/views/artist_detail_screen.dart';
 import 'package:my_music_online/src/features/artist/presentation/views/artist_songs_screen.dart';
 import 'package:my_music_online/src/features/artist/presentation/views/artist_albums_screen.dart';
+import 'package:my_music_online/src/features/settings/presentation/views/cookies_management_screen.dart';
 import 'package:my_music_online/src/features/settings/presentation/views/cookies_settings_screen.dart';
 import 'package:my_music_online/src/features/auth/presentation/views/login_screen.dart';
 import 'package:my_music_online/src/features/auth/presentation/views/register_screen.dart';
@@ -111,6 +112,12 @@ class AppRouter {
             path: RouteNames.settings,
             builder: (BuildContext context, GoRouterState state) {
               return const CookiesSettingsScreen();
+            },
+          ),
+          GoRoute(
+            path: RouteNames.cookiesManagement,
+            builder: (BuildContext context, GoRouterState state) {
+              return const CookiesManagementScreen();
             },
           ),
         ],
