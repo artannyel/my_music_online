@@ -1,7 +1,7 @@
 # Task 3: Presentation - Controller de Configurações em Riverpod
 
 ## 📌 Descrição Aprofundada
-Desenvolver os providers Riverpod para expor o estado dos cookies ativos e alimentar a inicialização do `dart_ytmusic_api`.
+Desenvolver os providers Riverpod para expor o estado dos cookies ativos e alimentar a inicialização das bibliotecas `dart_ytmusic_api`, `youtube_explode_dart` e `newpipeextractor_dart`.
 
 ## 🎯 Escopo da Task
 1. Criar `lib/src/features/settings/presentation/controllers/settings_controller.dart`.

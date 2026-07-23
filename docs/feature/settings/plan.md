@@ -1,7 +1,7 @@
 # Plano de Implementação - Feature: Settings & Cookies Management
 
 ## 1. Visão Geral
-A feature `settings` disponibiliza a interface de configurações do aplicativo e a área de gerenciamento e upload do arquivo `cookies.txt`. Esses cookies são enviados e persistidos no Firebase Cloud Firestore para que a biblioteca `dart_ytmusic_api` consiga autenticar as requisições de busca e reprodução de mídias de forma estável.
+A feature `settings` disponibiliza a interface de configurações do aplicativo e a área de gerenciamento e upload do arquivo `cookies.txt`. Esses cookies são enviados e persistidos no Firebase Cloud Firestore para que as bibliotecas do ecossistema do YouTube (`dart_ytmusic_api`, `youtube_explode_dart`, `newpipeextractor_dart`) consigam autenticar as requisições de busca e extração de áudio de forma estável e contornar limitações.
 
 ## 2. Referência de Design (Stitch)
 - **Stitch Project**: [https://stitch.withgoogle.com/projects/16430281818792447633](https://stitch.withgoogle.com/projects/16430281818792447633)
