@@ -171,7 +171,8 @@ class AddToPlaylistBottomSheet extends ConsumerWidget {
             constraints: const BoxConstraints(maxHeight: 300),
             child: playlistsAsync.when(
               data: (playlists) {
-                if (playlists.isEmpty) {
+                final userPlaylists = playlists.where((p) => p.type == PlaylistType.custom).toList();
+                if (userPlaylists.isEmpty) {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 24.0),
@@ -186,9 +187,9 @@ class AddToPlaylistBottomSheet extends ConsumerWidget {
 
                 return ListView.builder(
                   shrinkWrap: true,
-                  itemCount: playlists.length,
+                  itemCount: userPlaylists.length,
                   itemBuilder: (context, index) {
-                    final playlist = playlists[index];
+                    final playlist = userPlaylists[index];
                     final containsTrack = playlist.tracks.any((t) => t.id == track.id);
 
                     return ListTile(
@@ -220,7 +221,7 @@ class AddToPlaylistBottomSheet extends ConsumerWidget {
                         ),
                       ),
                       subtitle: Text(
-                        '${playlist.tracks.length} músicas',
+                        '${playlist.trackCount} músicas',
                         style: const TextStyle(color: AppColors.textSecondary),
                       ),
                       trailing: containsTrack

@@ -2,10 +2,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../playlist/domain/models/playlist_model.dart';
+import '../../../playlist/presentation/controllers/playlist_controller.dart';
 import '../../../playlist/presentation/widgets/add_to_playlist_bottom_sheet.dart';
+import '../../../playlist/presentation/widgets/create_playlist_dialog.dart';
 import '../../domain/models/player_state_model.dart';
 import '../controllers/player_controller.dart';
+import '../widgets/song_context_menu_bottom_sheet.dart';
 
 /// FullPlayerScreen exibe o player de áudio em tela cheia (estilo YouTube Music)
 /// com iluminação Neon Magenta/Violet, barra de progresso scrubber, fila e controle de repetição.
@@ -308,11 +312,10 @@ class FullPlayerScreen extends ConsumerWidget {
   }
 
   void _showQueueBottomSheet(BuildContext context, WidgetRef ref, PlayerStateModel state) {
-    const double itemHeight = 64.0;
+    const double itemHeight = 60.0;
     final double initialOffset = state.currentIndex > 0
         ? (state.currentIndex * itemHeight)
         : 0.0;
-    final scrollController = ScrollController(initialScrollOffset: initialOffset);
 
     showModalBottomSheet(
       context: context,
@@ -321,142 +324,494 @@ class FullPlayerScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
-        return Consumer(
-          builder: (context, ref, child) {
-            final currentState = ref.watch(playerControllerProvider);
-            final screenHeight = MediaQuery.of(context).size.height;
+      builder: (context) => _QueueBottomSheetContent(initialScrollOffset: initialOffset),
+    );
+  }
+}
 
-            return Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Text(
-                            'Fila de Reprodução',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+class _QueueBottomSheetContent extends ConsumerStatefulWidget {
+  final double initialScrollOffset;
+
+  const _QueueBottomSheetContent({required this.initialScrollOffset});
+
+  @override
+  ConsumerState<_QueueBottomSheetContent> createState() => _QueueBottomSheetContentState();
+}
+
+class _QueueBottomSheetContentState extends ConsumerState<_QueueBottomSheetContent> {
+  final Set<int> _selectedIndices = {};
+  late final ScrollController _scrollController;
+
+  bool get _isSelectionMode => _selectedIndices.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController(initialScrollOffset: widget.initialScrollOffset);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        final maxScroll = _scrollController.position.maxScrollExtent;
+        if (widget.initialScrollOffset > maxScroll) {
+          _scrollController.jumpTo(maxScroll);
+        } else {
+          _scrollController.jumpTo(widget.initialScrollOffset);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _toggleSelection(int index) {
+    setState(() {
+      if (_selectedIndices.contains(index)) {
+        _selectedIndices.remove(index);
+      } else {
+        _selectedIndices.add(index);
+      }
+    });
+  }
+
+  void _clearSelection() {
+    setState(() => _selectedIndices.clear());
+  }
+
+  Future<void> _saveSelectedAsPlaylist() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Faça login para criar playlists'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final currentState = ref.read(playerControllerProvider);
+    final selectedTracks = _selectedIndices
+        .map((i) => currentState.queue[i])
+        .toList();
+
+    if (selectedTracks.isEmpty) return;
+
+    final playlist = await CreatePlaylistDialog.show(
+      context,
+      userId: user.id,
+    );
+
+    if (playlist == null || !context.mounted) return;
+
+    final notifier = ref.read(playlistMutationsProvider.notifier);
+    int addedCount = 0;
+
+    for (final track in selectedTracks) {
+      final success = await notifier.addTrackToPlaylist(
+        playlistId: playlist.id,
+        track: PlaylistTrackModel(
+          id: track.id,
+          title: track.title,
+          artistName: track.artistName,
+          albumName: track.albumName,
+          thumbnailUrl: track.thumbnailUrl,
+          videoId: track.videoId,
+          duration: track.duration,
+        ),
+      );
+      if (success) addedCount++;
+    }
+
+    if (mounted) {
+      _clearSelection();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$addedCount faixas adicionadas a "${playlist.title}"'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveQueueAsPlaylist() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Faça login para criar playlists'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final currentState = ref.read(playerControllerProvider);
+    if (currentState.queue.isEmpty) return;
+
+    final playlist = await CreatePlaylistDialog.show(context, userId: user.id);
+    if (playlist == null || !context.mounted) return;
+
+    final notifier = ref.read(playlistMutationsProvider.notifier);
+    int addedCount = 0;
+
+    for (final track in currentState.queue) {
+      final success = await notifier.addTrackToPlaylist(
+        playlistId: playlist.id,
+        track: PlaylistTrackModel(
+          id: track.id,
+          title: track.title,
+          artistName: track.artistName,
+          albumName: track.albumName,
+          thumbnailUrl: track.thumbnailUrl,
+          videoId: track.videoId,
+          duration: track.duration,
+        ),
+      );
+      if (success) addedCount++;
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$addedCount faixas salvas em "${playlist.title}"'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentState = ref.watch(playerControllerProvider);
+    final screenHeight = MediaQuery.of(context).size.height;
+    final queue = currentState.queue;
+    final currentIndex = currentState.currentIndex;
+
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_isSelectionMode)
+            _buildSelectionBar()
+          else
+            _buildHeader(currentState),
+          const SizedBox(height: 12),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: screenHeight * 0.55),
+            child: queue.isEmpty
+                ? const Center(
+                    child: Text('Nenhuma faixa na fila.', style: TextStyle(color: AppColors.textSecondary)),
+                  )
+                : ReorderableListView.builder(
+                    buildDefaultDragHandles: false,
+                    scrollController: _scrollController,
+                    shrinkWrap: true,
+                    itemCount: queue.length,
+                    onReorderItem: (oldIndex, newIndex) {
+                      ref.read(playerControllerProvider.notifier).reorderQueue(oldIndex, newIndex);
+                    },
+                    itemBuilder: (context, index) {
+                      final item = queue[index];
+                      final isCurrent = index == currentIndex;
+                      final isSelected = _selectedIndices.contains(index);
+
+                      return Dismissible(
+                        key: ValueKey('queue_${item.id}_$index'),
+                        direction: DismissDirection.horizontal,
+                        background: Container(
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.only(left: 20),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          if (currentState.mixUrl != null) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(12),
+                          child: const Icon(Icons.delete_outline, color: AppColors.error),
+                        ),
+                        secondaryBackground: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.delete_outline, color: AppColors.error),
+                        ),
+                        confirmDismiss: (direction) async {
+                          if (index == currentIndex) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Não é possível remover a faixa atual'),
+                                backgroundColor: AppColors.error,
                               ),
-                              child: const Text(
-                                'Mix Infinito',
-                                style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
-                              ),
+                            );
+                            return false;
+                          }
+                          ref.read(playerControllerProvider.notifier).removeFromQueue(index);
+                          return false;
+                        },
+                        child: _buildQueueItem(
+                          item: item,
+                          index: index,
+                          isCurrent: isCurrent,
+                          isSelected: isSelected,
+                          onTap: () {
+                            if (_isSelectionMode) {
+                              _toggleSelection(index);
+                            } else if (!isCurrent) {
+                              ref.read(playerControllerProvider.notifier).playTrackFromQueueIndex(index);
+                              Navigator.pop(context);
+                            }
+                          },
+                          onLongPress: () {
+                            if (!_isSelectionMode) {
+                              _toggleSelection(index);
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(PlayerStateModel currentState) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Fila de Reprodução',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            ),
+            if (currentState.mixUrl != null) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Mix Infinito',
+                  style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ] else if (currentState.isRadioMode) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Rádio',
+                  style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ],
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${currentState.queue.length} faixas',
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            if (currentState.queue.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.playlist_add, color: AppColors.textSecondary, size: 20),
+                tooltip: 'Salvar fila como playlist',
+                onPressed: _saveQueueAsPlaylist,
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.clear_all, color: AppColors.textSecondary, size: 20),
+                tooltip: 'Limpar fila',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: AppColors.surface,
+                      title: const Text('Limpar fila?', style: TextStyle(color: AppColors.textPrimary)),
+                      content: const Text('Todas as faixas serão removidas.', style: TextStyle(color: AppColors.textSecondary)),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            ref.read(playerControllerProvider.notifier).clearQueue();
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text('Limpar', style: TextStyle(color: AppColors.error)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelectionBar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        TextButton.icon(
+          onPressed: _clearSelection,
+          icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 20),
+          label: Text(
+            '${_selectedIndices.length} selecionada(s)',
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
+        ElevatedButton.icon(
+          onPressed: _saveSelectedAsPlaylist,
+          icon: const Icon(Icons.playlist_add, size: 20),
+          label: const Text('Salvar como Playlist'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.textPrimary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQueueItem({
+    required AudioTrackModel item,
+    required int index,
+    required bool isCurrent,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required VoidCallback onLongPress,
+  }) {
+    return Padding(
+      key: ValueKey('queue_item_${item.id}_$index'),
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: isSelected
+            ? AppColors.primary.withValues(alpha: 0.15)
+            : isCurrent
+                ? AppColors.primary.withValues(alpha: 0.08)
+                : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: SizedBox(
+            height: 56,
+            child: Row(
+              children: [
+                if (_isSelectionMode)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(
+                      isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                      color: isSelected ? AppColors.primary : AppColors.textMuted,
+                      size: 22,
+                    ),
+                  ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: item.thumbnailUrl!,
+                            fit: BoxFit.cover,
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.cardBackground,
+                              child: const Icon(Icons.music_note, color: AppColors.primary),
                             ),
-                          ] else if (currentState.isRadioMode) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'Rádio',
-                                style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+                          )
+                        : Container(
+                            color: AppColors.cardBackground,
+                            child: const Icon(Icons.music_note, color: AppColors.primary),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        '${currentState.queue.length} faixas',
-                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        item.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isCurrent ? AppColors.primary : AppColors.textPrimary,
+                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.artistName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isCurrent ? AppColors.primary.withValues(alpha: 0.8) : AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: screenHeight * 0.55),
-                    child: currentState.queue.isEmpty
-                        ? const Center(
-                            child: Text('Nenhuma faixa na fila.', style: TextStyle(color: AppColors.textSecondary)),
-                          )
-                        : ListView.builder(
-                            controller: scrollController,
-                            shrinkWrap: true,
-                            itemCount: currentState.queue.length,
-                            itemBuilder: (context, index) {
-                              final item = currentState.queue[index];
-                              final isCurrent = index == currentState.currentIndex;
-
-                              return SizedBox(
-                                height: itemHeight,
-                                child: ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: SizedBox(
-                                      width: 44,
-                                      height: 44,
-                                      child: item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty
-                                          ? CachedNetworkImage(
-                                              imageUrl: item.thumbnailUrl!,
-                                              fit: BoxFit.cover,
-                                              errorWidget: (context, url, error) => Container(
-                                                color: AppColors.cardBackground,
-                                                child: const Icon(Icons.music_note, color: AppColors.primary),
-                                              ),
-                                            )
-                                          : Container(
-                                              color: AppColors.cardBackground,
-                                              child: const Icon(Icons.music_note, color: AppColors.primary),
-                                            ),
-                                    ),
-                                  ),
-                                  title: Text(
-                                    item.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: isCurrent ? AppColors.primary : AppColors.textPrimary,
-                                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    item.artistName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: isCurrent ? AppColors.primary.withValues(alpha: 0.8) : AppColors.textSecondary,
-                                    ),
-                                  ),
-                                  trailing: isCurrent
-                                      ? const Icon(
-                                          Icons.volume_up_rounded,
-                                          color: AppColors.primary,
-                                          size: 22,
-                                        )
-                                      : null,
-                                  onTap: isCurrent
-                                      ? null
-                                      : () {
-                                          ref.read(playerControllerProvider.notifier).playTrackFromQueueIndex(index);
-                                          Navigator.pop(context);
-                                        },
-                                ),
-                              );
-                            },
-                          ),
+                ),
+                if (isCurrent && !_isSelectionMode)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 4),
+                    child: Icon(Icons.volume_up_rounded, color: AppColors.primary, size: 18),
                   ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+                if (!_isSelectionMode)
+                  IconButton(
+                    icon: const Icon(Icons.more_vert, color: AppColors.textMuted, size: 18),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onPressed: () => showSongContextMenuBottomSheet(
+                      context,
+                      ref,
+                      track: item,
+                      isFromQueue: true,
+                      queueIndex: index,
+                    ),
+                  ),
+                ReorderableDragStartListener(
+                  index: index,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(Icons.drag_indicator, color: AppColors.textMuted, size: 24),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

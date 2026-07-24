@@ -20,21 +20,25 @@ class AudioPlayerService {
     debugPrint('[AudioPlayerService] --- Iniciando playTrack: "${track.title}" (videoId: ${track.videoId}) ---');
 
     try {
-      debugPrint('[AudioPlayerService] Requisitando manifesto AudiosResolver para ${track.videoId}...');
-      final result = await AudiosResolver.fetchSingle(videoId: track.videoId, forceRefresh: true);
-
-      if (result?.url != null) {
-        await _audioPlayer.setUrl(result!.url);
-        debugPrint('[AudioPlayerService] AudioSource configurado com sucesso. Chamando play()...');
-        await _audioPlayer.play();
-        debugPrint('[AudioPlayerService] Reprodução iniciada com sucesso via AudiosResolver!');
-        return;
-      } else {
-        throw Exception('URL não encontrada no AudiosResolver');
-      }
+      await setTrack(track);
+      debugPrint('[AudioPlayerService] AudioSource configurado com sucesso. Chamando play()...');
+      await _audioPlayer.play();
+      debugPrint('[AudioPlayerService] Reprodução iniciada com sucesso via AudiosResolver!');
     } catch (e, st) {
       debugPrint('[AudioPlayerService] Falha no AudiosResolver: $e\n$st');
       throw Exception('Não foi possível carregar a faixa ${track.title}');
+    }
+  }
+
+  /// Prepara o áudio carregando a URL sem iniciar a reprodução.
+  Future<void> setTrack(AudioTrackModel track) async {
+    debugPrint('[AudioPlayerService] --- setTrack: "${track.title}" (videoId: ${track.videoId}) ---');
+
+    final result = await AudiosResolver.fetchSingle(videoId: track.videoId, forceRefresh: true);
+    if (result?.url != null) {
+      await _audioPlayer.setUrl(result!.url);
+    } else {
+      throw Exception('URL não encontrada no AudiosResolver');
     }
   }
 

@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
+import '../../../player/presentation/widgets/song_context_menu_bottom_sheet.dart';
 import '../../domain/models/search_result_model.dart';
 import '../controllers/search_controller.dart';
 
@@ -302,20 +303,45 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
           trailing: item.type == SearchFilterType.song
-              ? IconButton(
-                  icon: const Icon(Icons.play_circle_fill, color: AppColors.primary, size: 32),
-                  onPressed: () {
-                    final audioTrack = AudioTrackModel(
-                      id: item.id,
-                      videoId: item.videoId,
-                      title: item.title,
-                      artistName: item.subtitle,
-                      thumbnailUrl: item.thumbnailUrl,
-                      duration: item.duration,
-                    );
-                    ref.read(playerControllerProvider.notifier).playTrackWithRadio(audioTrack);
-                    FullPlayerScreen.show(context);
-                  },
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.play_circle_fill, color: AppColors.primary, size: 32),
+                      onPressed: () {
+                        final audioTrack = AudioTrackModel(
+                          id: item.id,
+                          videoId: item.videoId,
+                          title: item.title,
+                          artistName: item.subtitle,
+                          thumbnailUrl: item.thumbnailUrl,
+                          duration: item.duration,
+                        );
+                        ref.read(playerControllerProvider.notifier).playTrackWithRadio(audioTrack);
+                        FullPlayerScreen.show(context);
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
+                      onPressed: () {
+                        final audioTrack = AudioTrackModel(
+                          id: item.id,
+                          videoId: item.videoId,
+                          title: item.title,
+                          artistName: item.subtitle,
+                          thumbnailUrl: item.thumbnailUrl,
+                          duration: item.duration,
+                        );
+                        showSongContextMenuBottomSheet(
+                          context,
+                          ref,
+                          track: audioTrack,
+                          artistId: item.artistId,
+                          albumId: item.albumId,
+                        );
+                      },
+                    ),
+                  ],
                 )
               : const Icon(Icons.chevron_right, color: AppColors.textMuted),
           onTap: () {
@@ -348,6 +374,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 break;
             }
           },
+          onLongPress: item.type == SearchFilterType.song
+              ? () {
+                  final audioTrack = AudioTrackModel(
+                    id: item.id,
+                    videoId: item.videoId,
+                    title: item.title,
+                    artistName: item.subtitle,
+                    thumbnailUrl: item.thumbnailUrl,
+                    duration: item.duration,
+                  );
+                  showSongContextMenuBottomSheet(
+                    context,
+                    ref,
+                    track: audioTrack,
+                    artistId: item.artistId,
+                    albumId: item.albumId,
+                  );
+                }
+              : null,
         ),
       ),
     );

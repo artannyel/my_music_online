@@ -22,6 +22,14 @@ class PlaylistDetailsNotifier extends AutoDisposeFamilyAsyncNotifier<PlaylistMod
     final repository = ref.watch(playlistRepositoryProvider);
     return repository.getPlaylistById(arg.id, arg.url);
   }
+
+  /// Atualiza o estado local com novas faixas sem refazer a requisição ao Firestore.
+  void updateTracks(List<PlaylistTrackModel> tracks) {
+    final current = state.valueOrNull;
+    if (current != null) {
+      state = AsyncData(current.copyWith(tracks: tracks));
+    }
+  }
 }
 
 final playlistDetailsProvider = AsyncNotifierProvider.autoDispose.family<PlaylistDetailsNotifier, PlaylistModel?, ({String id, String? url})>(() {
@@ -32,6 +40,12 @@ final playlistDetailsProvider = AsyncNotifierProvider.autoDispose.family<Playlis
 final isPlaylistSavedProvider = FutureProvider.family<bool, ({String userId, String playlistId})>((ref, arg) async {
   final repository = ref.watch(playlistRepositoryProvider);
   return repository.isPlaylistSaved(userId: arg.userId, playlistId: arg.playlistId);
+});
+
+/// Family FutureProvider para checar se um álbum está salvo na biblioteca do usuário.
+final isAlbumSavedProvider = FutureProvider.family<bool, ({String userId, String albumId})>((ref, arg) async {
+  final repository = ref.watch(playlistRepositoryProvider);
+  return repository.isAlbumSaved(userId: arg.userId, albumId: arg.albumId);
 });
 
 /// Controller para mutações de playlist (Criar, Salvar do YT, Duplicar, Adicionar Músicas, Deletar).
@@ -93,12 +107,16 @@ class PlaylistMutationsNotifier extends StateNotifier<AsyncValue<void>> {
   Future<PlaylistModel?> duplicatePlaylistAsCustom({
     required String userId,
     required PlaylistModel sourcePlaylist,
+    String? customTitle,
+    String? customDescription,
   }) async {
     state = const AsyncLoading();
     try {
       final customPlaylist = await _repository.duplicatePlaylistAsCustom(
         userId: userId,
         sourcePlaylist: sourcePlaylist,
+        customTitle: customTitle,
+        customDescription: customDescription,
       );
       state = const AsyncData(null);
       return customPlaylist;
@@ -138,10 +156,78 @@ class PlaylistMutationsNotifier extends StateNotifier<AsyncValue<void>> {
     }
   }
 
+  Future<bool> updatePlaylist({
+    required String playlistId,
+    String? title,
+    String? description,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      await _repository.updatePlaylist(
+        playlistId: playlistId,
+        title: title,
+        description: description,
+      );
+      state = const AsyncData(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return false;
+    }
+  }
+
+  Future<bool> reorderPlaylistTracks({
+    required String playlistId,
+    required List<PlaylistTrackModel> tracks,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      await _repository.reorderPlaylistTracks(
+        playlistId: playlistId,
+        tracks: tracks,
+      );
+      state = const AsyncData(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return false;
+    }
+  }
+
   Future<bool> deletePlaylist(String playlistId) async {
     state = const AsyncLoading();
     try {
       await _repository.deletePlaylist(playlistId);
+      state = const AsyncData(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return false;
+    }
+  }
+
+  Future<bool> saveAlbumToLibrary({
+    required String userId,
+    required AlbumSaveData album,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      await _repository.saveAlbumToLibrary(userId: userId, album: album);
+      state = const AsyncData(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return false;
+    }
+  }
+
+  Future<bool> unsaveAlbumFromLibrary({
+    required String userId,
+    required String albumId,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      await _repository.unsaveAlbumFromLibrary(userId: userId, albumId: albumId);
       state = const AsyncData(null);
       return true;
     } catch (e, st) {

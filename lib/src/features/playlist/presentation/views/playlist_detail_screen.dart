@@ -7,6 +7,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
+import '../../../player/presentation/widgets/song_context_menu_bottom_sheet.dart';
 import '../../domain/models/playlist_model.dart';
 import '../controllers/playlist_controller.dart';
 
@@ -45,6 +46,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       });
     }
   }
+
+
 
   @override
   void dispose() {
@@ -213,25 +216,34 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                         child: const Icon(Icons.copy, color: AppColors.textPrimary),
                       ),
                       tooltip: 'Criar cópia editável',
-                      onPressed: () async {
-                        final customCopy = await ref
-                            .read(playlistMutationsProvider.notifier)
-                            .duplicatePlaylistAsCustom(
-                              userId: currentUser.id,
-                              sourcePlaylist: playlist,
-                            );
-
-                        if (context.mounted && customCopy != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Cópia editável "${customCopy.title}" criada!'),
-                              backgroundColor: AppColors.success,
-                            ),
-                          );
-                          context.push('/playlist/${customCopy.id}');
-                        }
-                      },
+                      onPressed: () => _showCopyPlaylistDialog(context, playlist, currentUser.id),
                     ),
+                    if (isOwner) ...[
+                      IconButton(
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Colors.black45,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.edit, color: AppColors.textPrimary),
+                        ),
+                        tooltip: 'Editar playlist',
+                        onPressed: () => _showEditPlaylistDialog(context, playlist, currentUser.id),
+                      ),
+                      IconButton(
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Colors.black45,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.delete_outline, color: AppColors.error),
+                        ),
+                        tooltip: 'Excluir playlist',
+                        onPressed: () => _confirmDeletePlaylist(context, playlist, ref),
+                      ),
+                    ],
                   ],
                 ],
                 flexibleSpace: FlexibleSpaceBar(
@@ -418,6 +430,164 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                     ),
                   ),
                 )
+              else if (isOwner)
+                SliverToBoxAdapter(
+                  child: ReorderableListView.builder(
+                    buildDefaultDragHandles: false,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: playlist.tracks.length,
+                    onReorderItem: (oldIndex, newIndex) {
+                      final tracks = List<PlaylistTrackModel>.from(playlist.tracks);
+                      final track = tracks.removeAt(oldIndex);
+                      tracks.insert(newIndex, track);
+                      ref.read(playlistDetailsProvider((id: widget.playlistId, url: widget.url)).notifier).updateTracks(tracks);
+                      ref.read(playlistMutationsProvider.notifier).reorderPlaylistTracks(
+                        playlistId: playlist.id,
+                        tracks: tracks,
+                      );
+                    },
+                    itemBuilder: (context, index) {
+                      final track = playlist.tracks[index];
+                      final currentTrack = playerState.currentTrack;
+                      final isPlayingThisTrack = currentTrack != null &&
+                          (currentTrack.videoId == (track.videoId ?? track.id) || currentTrack.id == track.id);
+                      return Dismissible(
+                        key: ValueKey('playlist_track_${track.id}_$index'),
+                        direction: DismissDirection.horizontal,
+                        background: Container(
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.only(left: 20),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.delete_outline, color: AppColors.error),
+                        ),
+                        secondaryBackground: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.delete_outline, color: AppColors.error),
+                        ),
+                        confirmDismiss: (direction) async {
+                          final updated = List<PlaylistTrackModel>.from(playlist.tracks)..removeAt(index);
+                          ref.read(playlistDetailsProvider((id: widget.playlistId, url: widget.url)).notifier).updateTracks(updated);
+                          await ref.read(playlistMutationsProvider.notifier).removeTrackFromPlaylist(
+                            playlistId: playlist.id,
+                            trackId: track.id,
+                          );
+                          return false;
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                          child: Material(
+                            color: isPlayingThisTrack
+                                ? AppColors.primary.withValues(alpha: 0.12)
+                                : AppColors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isPlayingThisTrack ? AppColors.primary : AppColors.divider,
+                                  width: isPlayingThisTrack ? 1.5 : 0.5,
+                                ),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                                leading: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: SizedBox(
+                                    width: 48, height: 48,
+                                    child: track.thumbnailUrl != null
+                                        ? CachedNetworkImage(
+                                            imageUrl: track.thumbnailUrl!, fit: BoxFit.cover,
+                                            errorWidget: (context, url, error) => Container(
+                                              color: AppColors.cardBackground,
+                                              child: const Icon(Icons.music_note, color: AppColors.primary),
+                                            ),
+                                          )
+                                        : Container(
+                                            color: AppColors.cardBackground,
+                                            child: const Icon(Icons.music_note, color: AppColors.primary),
+                                          ),
+                                  ),
+                                ),
+                                title: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: isPlayingThisTrack ? FontWeight.bold : FontWeight.w600,
+                                    color: isPlayingThisTrack ? AppColors.primary : AppColors.textPrimary,
+                                  )),
+                                subtitle: Text(track.artistName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isPlayingThisTrack ? AppColors.primary.withValues(alpha: 0.8) : AppColors.textSecondary,
+                                  )),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isPlayingThisTrack)
+                                      const Padding(
+                                        padding: EdgeInsets.only(right: 4),
+                                        child: Icon(Icons.volume_up_rounded, color: AppColors.primary, size: 18),
+                                      ),
+                                    IconButton(
+                                      icon: const Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
+                                      onPressed: () => showSongContextMenuBottomSheet(
+                                        context, ref,
+                                        track: AudioTrackModel(
+                                          id: track.id, videoId: track.videoId ?? track.id,
+                                          title: track.title, artistName: track.artistName,
+                                          albumName: track.albumName, thumbnailUrl: track.thumbnailUrl,
+                                          duration: track.duration,
+                                        ),
+                                      ),
+                                    ),
+                                    ReorderableDragStartListener(
+                                      index: index,
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 2),
+                                        child: Icon(Icons.drag_indicator, color: AppColors.textMuted, size: 22),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                onTap: () {
+                                  if (isPlayingThisTrack) {
+                                    FullPlayerScreen.show(context);
+                                  } else {
+                                    final queue = _mapTracksToAudioQueue(playlist.tracks);
+                                    ref.read(playerControllerProvider.notifier).playQueue(
+                                      queue, initialIndex: index,
+                                      isRadioMode: playlist.isMix,
+                                      mixUrl: playlist.isMix ? widget.url : null,
+                                      mixNextPageToken: playlist.isMix ? playlist.nextPageUrl : null,
+                                    );
+                                    FullPlayerScreen.show(context);
+                                  }
+                                },
+                                onLongPress: () => showSongContextMenuBottomSheet(
+                                  context, ref,
+                                  track: AudioTrackModel(
+                                    id: track.id, videoId: track.videoId ?? track.id,
+                                    title: track.title, artistName: track.artistName,
+                                    albumName: track.albumName, thumbnailUrl: track.thumbnailUrl,
+                                    duration: track.duration,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                )
               else
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
@@ -492,11 +662,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                   if (isPlayingThisTrack)
                                     const Padding(
                                       padding: EdgeInsets.only(right: 6.0),
-                                      child: Icon(
-                                        Icons.volume_up_rounded,
-                                        color: AppColors.primary,
-                                        size: 22,
-                                      ),
+                                      child: Icon(Icons.volume_up_rounded, color: AppColors.primary, size: 22),
                                     ),
                                   if (isOwner)
                                     IconButton(
@@ -513,6 +679,22 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                         }
                                       },
                                     ),
+                                  IconButton(
+                                    icon: const Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
+                                    onPressed: () => showSongContextMenuBottomSheet(
+                                      context,
+                                      ref,
+                                      track: AudioTrackModel(
+                                        id: track.id,
+                                        videoId: track.videoId ?? track.id,
+                                        title: track.title,
+                                        artistName: track.artistName,
+                                        albumName: track.albumName,
+                                        thumbnailUrl: track.thumbnailUrl,
+                                        duration: track.duration,
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                               onTap: () {
@@ -530,6 +712,19 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                   FullPlayerScreen.show(context);
                                 }
                               },
+                              onLongPress: () => showSongContextMenuBottomSheet(
+                                context,
+                                ref,
+                                track: AudioTrackModel(
+                                  id: track.id,
+                                  videoId: track.videoId ?? track.id,
+                                  title: track.title,
+                                  artistName: track.artistName,
+                                  albumName: track.albumName,
+                                  thumbnailUrl: track.thumbnailUrl,
+                                  duration: track.duration,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -556,6 +751,181 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
             child: Text('Erro ao carregar detalhes da playlist.', style: TextStyle(color: AppColors.error)),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showCopyPlaylistDialog(BuildContext context, PlaylistModel playlist, String userId) {
+    final titleController = TextEditingController(text: '${playlist.title} (Cópia)');
+    final descriptionController = TextEditingController(text: playlist.description ?? '');
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.copy, color: AppColors.primary, size: 24),
+            SizedBox(width: 12),
+            Text('Copiar Playlist', style: TextStyle(color: AppColors.textPrimary)),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: titleController,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Título da cópia *'),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Informe um título' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: descriptionController,
+                style: const TextStyle(color: AppColors.textPrimary),
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Descrição (opcional)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(ctx);
+              final customCopy = await ref.read(playlistMutationsProvider.notifier).duplicatePlaylistAsCustom(
+                userId: userId,
+                sourcePlaylist: playlist,
+                customTitle: titleController.text.trim(),
+                customDescription: descriptionController.text.trim().isNotEmpty
+                    ? descriptionController.text.trim()
+                    : null,
+              );
+              if (context.mounted && customCopy != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Cópia "${customCopy.title}" criada!'), backgroundColor: AppColors.success),
+                );
+                context.push('/playlist/${customCopy.id}');
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('Copiar', style: TextStyle(color: AppColors.textPrimary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditPlaylistDialog(BuildContext context, PlaylistModel playlist, String userId) {
+    final titleController = TextEditingController(text: playlist.title);
+    final descriptionController = TextEditingController(text: playlist.description ?? '');
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.edit, color: AppColors.primary, size: 24),
+            SizedBox(width: 12),
+            Text('Editar Playlist', style: TextStyle(color: AppColors.textPrimary)),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: titleController,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Título *'),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Informe um título' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: descriptionController,
+                style: const TextStyle(color: AppColors.textPrimary),
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Descrição (opcional)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              final success = await ref.read(playlistMutationsProvider.notifier).updatePlaylist(
+                playlistId: playlist.id,
+                title: titleController.text.trim(),
+                description: descriptionController.text.trim().isNotEmpty
+                    ? descriptionController.text.trim()
+                    : null,
+              );
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                if (success) {
+                  ref.invalidate(playlistDetailsProvider((id: widget.playlistId, url: widget.url)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Playlist atualizada!'), backgroundColor: AppColors.success),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('Salvar', style: TextStyle(color: AppColors.textPrimary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeletePlaylist(BuildContext context, PlaylistModel playlist, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Excluir playlist?', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text('Tem certeza que deseja excluir "${playlist.title}"?', style: const TextStyle(color: AppColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final success = await ref.read(playlistMutationsProvider.notifier).deletePlaylist(playlist.id);
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                if (success && context.mounted) {
+                  context.pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('"${playlist.title}" excluída'), backgroundColor: AppColors.success),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Excluir', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

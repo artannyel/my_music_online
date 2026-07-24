@@ -34,12 +34,32 @@ abstract class PlaylistRepository {
   Future<PlaylistModel> duplicatePlaylistAsCustom({
     required String userId,
     required PlaylistModel sourcePlaylist,
+    String? customTitle,
+    String? customDescription,
   });
 
   /// Verifica se uma playlist do YouTube está salva na biblioteca do usuário.
   Future<bool> isPlaylistSaved({
     required String userId,
     required String playlistId,
+  });
+
+  /// Salva um álbum na biblioteca do usuário no Firestore (tipo album, somente-leitura).
+  Future<void> saveAlbumToLibrary({
+    required String userId,
+    required AlbumSaveData album,
+  });
+
+  /// Remove um álbum salvo da biblioteca do usuário.
+  Future<void> unsaveAlbumFromLibrary({
+    required String userId,
+    required String albumId,
+  });
+
+  /// Verifica se um álbum está salvo na biblioteca do usuário.
+  Future<bool> isAlbumSaved({
+    required String userId,
+    required String albumId,
   });
 
   /// Adiciona uma faixa a uma playlist personalizada do usuário no Firestore.
@@ -52,6 +72,19 @@ abstract class PlaylistRepository {
   Future<void> removeTrackFromPlaylist({
     required String playlistId,
     required String trackId,
+  });
+
+  /// Atualiza os metadados de uma playlist (título, descrição).
+  Future<void> updatePlaylist({
+    required String playlistId,
+    String? title,
+    String? description,
+  });
+
+  /// Reordena as faixas de uma playlist personalizada.
+  Future<void> reorderPlaylistTracks({
+    required String playlistId,
+    required List<PlaylistTrackModel> tracks,
   });
 
   /// Exclui uma playlist do usuário no Firestore.

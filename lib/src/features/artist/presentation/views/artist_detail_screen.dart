@@ -7,6 +7,7 @@ import '../controllers/artist_controller.dart';
 import '../../../../features/player/presentation/controllers/player_controller.dart';
 import '../../../../features/player/domain/models/player_state_model.dart';
 import '../../../../features/player/presentation/views/full_player_screen.dart';
+import '../../../../features/player/presentation/widgets/song_context_menu_bottom_sheet.dart';
 
 class ArtistDetailScreen extends ConsumerStatefulWidget {
   final String artistId;
@@ -404,7 +405,10 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
-          trailing: const Icon(Icons.more_vert, color: AppColors.textMuted),
+          trailing: IconButton(
+            icon: const Icon(Icons.more_vert, color: AppColors.textMuted),
+            onPressed: () => showSongContextMenuBottomSheet(context, ref, track: song),
+          ),
           onTap: () => _playSongs(songs, index),
         );
       },

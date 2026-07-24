@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
+import '../../../player/presentation/widgets/song_context_menu_bottom_sheet.dart';
 import '../../domain/models/home_section_model.dart';
 import '../controllers/home_controller.dart';
 
@@ -460,10 +461,23 @@ class HomeScreen extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
-                          onPressed: () {},
-                        ),
+                        if (item.type == HomeItemType.song)
+                          IconButton(
+                            icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                            onPressed: () => showSongContextMenuBottomSheet(
+                              context,
+                              ref,
+                              track: AudioTrackModel(
+                                id: item.id,
+                                videoId: item.id,
+                                title: item.title,
+                                artistName: item.subtitle,
+                                thumbnailUrl: item.thumbnailUrl,
+                              ),
+                              artistId: item.artistId,
+                              albumId: item.albumId,
+                            ),
+                          ),
                       ],
                     ),
                   ),

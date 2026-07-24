@@ -154,6 +154,7 @@ class PlaylistsScreen extends ConsumerWidget {
           itemBuilder: (context, index) {
             final playlist = playlists[index];
             final isCustom = playlist.type == PlaylistType.custom;
+            final isAlbum = playlist.type == PlaylistType.album;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 12.0),
@@ -206,11 +207,13 @@ class PlaylistsScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: isCustom ? AppColors.primary : AppColors.secondary,
+                            color: isCustom || isAlbum
+                                ? AppColors.primary
+                                : AppColors.secondary,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            isCustom ? 'Sua' : 'YT',
+                            isCustom ? 'Sua' : isAlbum ? 'Album' : 'YT',
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -221,7 +224,7 @@ class PlaylistsScreen extends ConsumerWidget {
                       ],
                     ),
                     subtitle: Text(
-                      '${isCustom ? '${playlist.tracks.length} faixas' : 'Salva do YouTube'} ${playlist.description != null ? '• ${playlist.description}' : ''}',
+                      '${playlist.trackCount} faixas${playlist.description != null ? ' • ${playlist.description}' : ''}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: AppColors.textSecondary),
@@ -255,7 +258,11 @@ class PlaylistsScreen extends ConsumerWidget {
                     ),
                     onTap: () {
                       final targetId = playlist.originalYtPlaylistId ?? playlist.id;
-                      context.push('/playlist/$targetId');
+                      if (isAlbum) {
+                        context.push('/album/$targetId');
+                      } else {
+                        context.push('/playlist/$targetId');
+                      }
                     },
                   ),
                 ),

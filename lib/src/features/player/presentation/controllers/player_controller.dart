@@ -1,16 +1,20 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:dart_ytmusic_api/dart_ytmusic_api.dart';
+import 'package:my_music_online/src/features/playlist/presentation/controllers/playlist_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/services/audio_player_service.dart';
 import '../../data/services/app_audio_handler.dart';
 import '../../data/services/audio_handler_provider.dart';
 import '../../domain/models/player_state_model.dart';
 import '../../../playlist/domain/repositories/playlist_repository.dart';
-import '../../../playlist/presentation/controllers/playlist_controller.dart';
+
+const _prefsKey = 'player_session';
 
 /// Provider singleton para a instância do AudioPlayerService.
 final audioPlayerServiceProvider = Provider<AudioPlayerService>((ref) {
@@ -77,6 +81,117 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     });
   }
 
+  /// Restaura a sessão anterior do player a partir do SharedPreferences.
+  Future<void> restoreSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_prefsKey);
+      if (saved == null || saved.isEmpty) return;
+
+      final data = json.decode(saved) as Map<String, dynamic>;
+      final queueJson = data['queue'] as List<dynamic>?;
+      if (queueJson == null || queueJson.isEmpty) return;
+
+      final restoredQueue = queueJson
+          .map((e) => AudioTrackModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final savedIndex = data['currentIndex'] as int? ?? 0;
+      final clampedIndex = savedIndex.clamp(0, restoredQueue.length - 1);
+
+      state = state.copyWith(
+        queue: restoredQueue,
+        currentIndex: clampedIndex,
+        currentTrack: restoredQueue[clampedIndex],
+        isPlaying: false,
+        isBuffering: false,
+      );
+
+      // Pré-carrega a faixa restaurada sem iniciar a reprodução
+      unawaited(_service.setTrack(restoredQueue[clampedIndex]));
+    } catch (e) {
+      debugPrint('[PlayerController] Erro ao restaurar sessão: $e');
+    }
+  }
+
+  /// Salva a fila e o índice atual no SharedPreferences.
+  void _saveSession() {
+    try {
+      final data = json.encode({
+        'queue': state.queue.map((t) => t.toJson()).toList(),
+        'currentIndex': state.currentIndex,
+      });
+      SharedPreferences.getInstance().then((prefs) => prefs.setString(_prefsKey, data));
+    } catch (e) {
+      debugPrint('[PlayerController] Erro ao salvar sessão: $e');
+    }
+  }
+
+  // ─── Queue manipulation ──────────────────────────────────────
+
+  /// Adiciona uma faixa ao final da fila atual.
+  void addToQueue(AudioTrackModel track) {
+    if (state.queue.any((t) => t.id == track.id)) return;
+    final updated = List<AudioTrackModel>.from(state.queue)..add(track);
+    state = state.copyWith(queue: updated);
+    _saveSession();
+  }
+
+  /// Insere uma faixa logo após a faixa que está tocando no momento.
+  void insertNext(AudioTrackModel track) {
+    if (state.queue.any((t) => t.id == track.id)) return;
+    final insertAt = state.currentIndex + 1;
+    final updated = List<AudioTrackModel>.from(state.queue);
+    updated.insert(insertAt.clamp(0, updated.length), track);
+    state = state.copyWith(queue: updated);
+    _saveSession();
+  }
+
+  /// Remove uma faixa da fila pelo índice.
+  /// Não permite remover a faixa que está tocando no momento.
+  void removeFromQueue(int index) {
+    if (index < 0 || index >= state.queue.length) return;
+    if (index == state.currentIndex) return;
+
+    final updated = List<AudioTrackModel>.from(state.queue)..removeAt(index);
+    final newIndex = index < state.currentIndex ? state.currentIndex - 1 : state.currentIndex;
+    state = state.copyWith(queue: updated, currentIndex: newIndex);
+    _saveSession();
+  }
+
+  /// Reordena a fila movendo um item de [oldIndex] para [newIndex].
+  void reorderQueue(int oldIndex, int newIndex) {
+    if (oldIndex == newIndex) return;
+    final updated = List<AudioTrackModel>.from(state.queue);
+    final track = updated.removeAt(oldIndex);
+    final insertAt = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    updated.insert(insertAt.clamp(0, updated.length), track);
+
+    int newCurrentIndex = state.currentIndex;
+    if (oldIndex == state.currentIndex) {
+      newCurrentIndex = insertAt;
+    } else if (oldIndex < state.currentIndex && newIndex > state.currentIndex) {
+      newCurrentIndex = state.currentIndex - 1;
+    } else if (oldIndex > state.currentIndex && newIndex < state.currentIndex) {
+      newCurrentIndex = state.currentIndex + 1;
+    }
+
+    state = state.copyWith(queue: updated, currentIndex: newCurrentIndex);
+    _saveSession();
+  }
+
+  /// Limpa toda a fila de reprodução.
+  void clearQueue() {
+    state = state.copyWith(
+      queue: [],
+      currentIndex: -1,
+      currentTrack: null,
+      isPlaying: false,
+      isRadioMode: false,
+      clearMix: true,
+    );
+    _saveSession();
+  }
+
   final Set<String> _fetchedRadioVideoIds = {};
 
   /// Toca uma faixa específica com o modo Rádio Automix ativado (filas infinitas)
@@ -92,10 +207,10 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       isRadioMode: true,
       clearMix: true,
     );
+    _saveSession();
 
     try {
       _updateNotification(track);
-      // Dispara a busca das sugestões do Rádio em paralelo no segundo 0
       _fetchAndAppendUpNexts(track.videoId);
       await _service.playTrack(track);
     } catch (e, st) {
@@ -115,6 +230,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       isRadioMode: false,
       clearMix: true,
     );
+    _saveSession();
 
     try {
       _updateNotification(track);
@@ -143,6 +259,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       mixNextPageToken: mixNextPageToken,
       clearMix: mixUrl == null,
     );
+    _saveSession();
 
     try {
       _updateNotification(targetTrack);
@@ -155,7 +272,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
   Future<void>? _activeRadioFetch;
 
-  /// Toca uma faixa selecionada da fila de reprodução mantendo o modo atual (ex: Rádio Automix)
+  /// Toca uma faixa selecionada da fila de reprodução mantendo o modo atual
   Future<void> playTrackFromQueueIndex(int index) async {
     if (state.queue.isEmpty) return;
 
@@ -168,13 +285,11 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       isBuffering: true,
       position: Duration.zero,
     );
+    _saveSession();
 
-    // Se estiver no modo Mix e estiver nos últimos 3 elementos, busca a próxima página do Mix
     if (state.mixUrl != null && state.mixNextPageToken != null && targetIndex >= state.queue.length - 3) {
       _fetchAndAppendMixNextPage();
-    }
-    // Senão, se estiver no modo Rádio e estiver nos últimos 3 elementos, busca mais faixas
-    else if (state.isRadioMode && state.mixUrl == null && targetIndex >= state.queue.length - 3) {
+    } else if (state.isRadioMode && state.mixUrl == null && targetIndex >= state.queue.length - 3) {
       _fetchAndAppendUpNexts(targetTrack.videoId);
     }
 
@@ -189,7 +304,6 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
   bool _isFetchingMix = false;
 
-  /// Busca a próxima página do Mix Infinito e anexa à fila
   Future<void> _fetchAndAppendMixNextPage() async {
     final url = state.mixUrl;
     final token = state.mixNextPageToken;
@@ -199,7 +313,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
     try {
       final (tracks: newTracks, nextPageUrl: newToken) = await _playlistRepository.getMixNextPage(url, token);
-      
+
       if (newTracks.isNotEmpty) {
         final audioTracks = newTracks.map((t) => AudioTrackModel(
           id: t.id,
@@ -209,10 +323,11 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
           thumbnailUrl: t.thumbnailUrl,
           duration: t.duration,
         )).where((t) => !state.queue.any((qTrack) => qTrack.videoId == t.videoId)).toList();
-        
+
         if (audioTracks.isNotEmpty) {
           final updatedQueue = List<AudioTrackModel>.from(state.queue)..addAll(audioTracks);
           state = state.copyWith(queue: updatedQueue, mixNextPageToken: newToken);
+          _saveSession();
         } else {
           state = state.copyWith(mixNextPageToken: newToken);
         }
@@ -226,7 +341,6 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     }
   }
 
-  /// Busca em segundo plano o Rádio Automix (getUpNexts) e anexa à fila de reprodução
   Future<void> _fetchAndAppendUpNexts(String videoId) async {
     if (videoId.isEmpty || _fetchedRadioVideoIds.contains(videoId)) return;
     _fetchedRadioVideoIds.add(videoId);
@@ -261,6 +375,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       if (newTracks.isNotEmpty) {
         final updatedQueue = List<AudioTrackModel>.from(state.queue)..addAll(newTracks);
         state = state.copyWith(queue: updatedQueue);
+        _saveSession();
       }
     } catch (e, st) {
       debugPrint('[PlayerController] Erro ao buscar Rádio Automix (getUpNexts): $e\n$st');
@@ -273,7 +388,6 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     }
   }
 
-  /// Alterna entre reproduzir e pausar a faixa atual
   Future<void> togglePlayPause() async {
     if (state.currentTrack == null) return;
 
@@ -284,12 +398,10 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     }
   }
 
-  /// Ajusta a posição de reprodução da faixa (Seek)
   Future<void> seek(Duration position) async {
     await _service.seek(position);
   }
 
-  /// Avança para a próxima música da fila
   Future<void> nextTrack({bool isAutoCompletion = false}) async {
     if (state.queue.isEmpty) return;
 
@@ -301,7 +413,6 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
     int nextIndex = state.currentIndex + 1;
 
-    // Se estiver no modo Mix Infinito
     if (state.mixUrl != null && state.mixNextPageToken != null) {
       if (nextIndex >= state.queue.length - 2) {
         if (nextIndex >= state.queue.length) {
@@ -311,19 +422,13 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
           _fetchAndAppendMixNextPage();
         }
       }
-    }
-    // Senão, se estiver no modo Rádio Automix
-    else if (state.isRadioMode && state.mixUrl == null) {
-      // Se chegarmos perto ou no final da fila, busca mais faixas imediatamente!
+    } else if (state.isRadioMode && state.mixUrl == null) {
       if (nextIndex >= state.queue.length - 2) {
         final lastVideoId = state.queue.last.videoId;
         if (nextIndex >= state.queue.length) {
-          // Se o usuário clicou Próximo e já estava na ÚLTIMA música da fila:
-          // Aguarda o término da busca para expandir a fila antes de prosseguir!
           state = state.copyWith(isBuffering: true);
           await _fetchAndAppendUpNexts(lastVideoId);
         } else {
-          // Se ainda restam 1 ou 2 faixas, busca assincronamente em segundo plano
           _fetchAndAppendUpNexts(lastVideoId);
         }
       }
@@ -352,6 +457,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       isBuffering: true,
       position: Duration.zero,
     );
+    _saveSession();
 
     try {
       _updateNotification(nextTrackItem);
@@ -362,7 +468,6 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     }
   }
 
-  /// Volta para a música anterior da fila ou reinicia a atual
   Future<void> previousTrack() async {
     if (state.queue.isEmpty) return;
 
@@ -391,6 +496,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       isBuffering: true,
       position: Duration.zero,
     );
+    _saveSession();
 
     try {
       _updateNotification(prevTrackItem);
@@ -401,7 +507,6 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     }
   }
 
-  /// Alterna entre os modos de repetição (desligado -> faixa atual -> lista inteira)
   Future<void> toggleRepeatMode() async {
     final nextMode = switch (state.repeatMode) {
       RepeatMode.off => RepeatMode.all,
@@ -413,7 +518,6 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
     state = state.copyWith(repeatMode: nextMode);
   }
 
-  /// Alterna o modo aleatório (Shuffle)
   Future<void> toggleShuffle() async {
     final nextShuffle = !state.isShuffleEnabled;
     await _service.setShuffle(nextShuffle);
@@ -429,10 +533,11 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
   }
 }
 
-/// Provider do PlayerController em Riverpod.
 final playerControllerProvider = StateNotifierProvider<PlayerController, PlayerStateModel>((ref) {
   final service = ref.watch(audioPlayerServiceProvider);
   final handler = ref.watch(audioHandlerProvider);
   final playlistRepo = ref.watch(playlistRepositoryProvider);
-  return PlayerController(service, handler, playlistRepo);
+  final controller = PlayerController(service, handler, playlistRepo);
+  controller.restoreSession();
+  return controller;
 });

@@ -1,4 +1,4 @@
-enum PlaylistType { youtube, custom }
+enum PlaylistType { youtube, custom, album }
 
 /// Model que representa uma faixa dentro de uma playlist.
 class PlaylistTrackModel {
@@ -47,6 +47,25 @@ class PlaylistTrackModel {
   }
 }
 
+/// Dados necessários para salvar um álbum na biblioteca.
+class AlbumSaveData {
+  final String id;
+  final String title;
+  final String artistName;
+  final String? coverUrl;
+  final List<PlaylistTrackModel> tracks;
+  final int trackCount;
+
+  const AlbumSaveData({
+    required this.id,
+    required this.title,
+    required this.artistName,
+    this.coverUrl,
+    this.tracks = const [],
+    int? trackCount,
+  }) : trackCount = trackCount ?? tracks.length;
+}
+
 /// Model principal de Playlist (pública do YTMusic ou salva/criada pelo usuário no Firestore).
 class PlaylistModel {
   final String id;
@@ -55,6 +74,7 @@ class PlaylistModel {
   final String? description;
   final String? coverUrl;
   final List<PlaylistTrackModel> tracks;
+  final int trackCount;
   final DateTime createdAt;
   final bool isPublic;
   final PlaylistType type;
@@ -69,13 +89,14 @@ class PlaylistModel {
     this.description,
     this.coverUrl,
     this.tracks = const [],
+    int? trackCount,
     required this.createdAt,
     this.isPublic = true,
     this.type = PlaylistType.custom,
     this.originalYtPlaylistId,
     this.isMix = false,
     this.nextPageUrl,
-  });
+  }) : trackCount = trackCount ?? tracks.length;
 
   factory PlaylistModel.fromJson(Map<String, dynamic> json) {
     final rawTracks = json['tracks'] as List<dynamic>? ?? [];
@@ -85,6 +106,7 @@ class PlaylistModel {
       title: json['title'] as String? ?? '',
       description: json['description'] as String?,
       coverUrl: json['coverUrl'] as String?,
+      trackCount: json['trackCount'] as int?,
       tracks: rawTracks
           .map((t) => PlaylistTrackModel.fromJson(Map<String, dynamic>.from(t)))
           .toList(),
@@ -109,6 +131,7 @@ class PlaylistModel {
       'title': title,
       'description': description,
       'coverUrl': coverUrl,
+      'trackCount': trackCount,
       'tracks': tracks.map((t) => t.toJson()).toList(),
       'createdAt': createdAt.toIso8601String(),
       'isPublic': isPublic,
@@ -126,6 +149,7 @@ class PlaylistModel {
     String? description,
     String? coverUrl,
     List<PlaylistTrackModel>? tracks,
+    int? trackCount,
     DateTime? createdAt,
     bool? isPublic,
     PlaylistType? type,
@@ -138,6 +162,7 @@ class PlaylistModel {
       description: description ?? this.description,
       coverUrl: coverUrl ?? this.coverUrl,
       tracks: tracks ?? this.tracks,
+      trackCount: trackCount ?? this.trackCount,
       createdAt: createdAt ?? this.createdAt,
       isPublic: isPublic ?? this.isPublic,
       type: type ?? this.type,

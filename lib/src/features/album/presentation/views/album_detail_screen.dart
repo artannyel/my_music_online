@@ -3,9 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/domain/models/user_model.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
+import '../../../player/presentation/widgets/song_context_menu_bottom_sheet.dart';
+import '../../../playlist/domain/models/playlist_model.dart';
+import '../../../playlist/presentation/controllers/playlist_controller.dart';
+import '../../domain/models/album_model.dart';
 import '../controllers/album_controller.dart';
 
 /// AlbumDetailScreen exibe os detalhes do Álbum no padrão visual do Stitch Design
@@ -64,6 +70,7 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
   Widget build(BuildContext context) {
     final albumAsync = ref.watch(albumDetailProvider(widget.albumId));
     final playerState = ref.watch(playerControllerProvider);
+    final currentUser = ref.watch(currentUserProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -108,6 +115,8 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                   icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
                   onPressed: () => context.pop(),
                 ),
+                actions: _buildAlbumActions(album, currentUser),
+
                 flexibleSpace: FlexibleSpaceBar(
                   background: Stack(
                     fit: StackFit.expand,
@@ -187,40 +196,45 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                 ),
               ),
 
-              // Botões de Ação Principais (Tocar / Aleatório)
+                // Botões de Ação Principais (Tocar / Aleatório)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            ref.read(playerControllerProvider.notifier).playQueue(album.tracks, initialIndex: 0);
-                            FullPlayerScreen.show(context);
-                          },
-                          icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 26),
-                          label: const Text('Tocar Tudo', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                ref.read(playerControllerProvider.notifier).playQueue(album.tracks, initialIndex: 0);
+                                FullPlayerScreen.show(context);
+                              },
+                              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 26),
+                              label: const Text('Tocar Tudo', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton(
-                        onPressed: () {
-                          final shuffledTracks = List<AudioTrackModel>.from(album.tracks)..shuffle();
-                          ref.read(playerControllerProvider.notifier).playQueue(shuffledTracks, initialIndex: 0);
-                          FullPlayerScreen.show(context);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.divider),
-                          padding: const EdgeInsets.all(14),
-                          shape: const CircleBorder(),
-                        ),
-                        child: const Icon(Icons.shuffle_rounded, color: AppColors.textPrimary, size: 22),
+                          const SizedBox(width: 12),
+                          OutlinedButton(
+                            onPressed: () {
+                              final shuffledTracks = List<AudioTrackModel>.from(album.tracks)..shuffle();
+                              ref.read(playerControllerProvider.notifier).playQueue(shuffledTracks, initialIndex: 0);
+                              FullPlayerScreen.show(context);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.divider),
+                              padding: const EdgeInsets.all(14),
+                              shape: const CircleBorder(),
+                            ),
+                            child: const Icon(Icons.shuffle_rounded, color: AppColors.textPrimary, size: 22),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -263,14 +277,24 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                       ),
-                      trailing: Text(
-                        _formatTrackDuration(track.duration),
-                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _formatTrackDuration(track.duration),
+                            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
+                            onPressed: () => showSongContextMenuBottomSheet(context, ref, track: track),
+                          ),
+                        ],
                       ),
                       onTap: () {
                         ref.read(playerControllerProvider.notifier).playQueue(album.tracks, initialIndex: index);
                         FullPlayerScreen.show(context);
                       },
+                      onLongPress: () => showSongContextMenuBottomSheet(context, ref, track: track),
                     );
                   },
                   childCount: album.tracks.length,
@@ -298,4 +322,158 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
       ),
     );
   }
+
+  List<Widget> _buildAlbumActions(AlbumModel album, UserModel? user) {
+    if (user == null) return [];
+
+    final isSavedAsync = ref.watch(isAlbumSavedProvider((userId: user.id, albumId: album.id)));
+    final isSaved = isSavedAsync.value ?? false;
+
+    return [
+      IconButton(
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+          child: Icon(
+            isSaved ? Icons.favorite : Icons.favorite_border,
+            color: isSaved ? AppColors.primary : AppColors.textPrimary,
+          ),
+        ),
+        onPressed: () async {
+          final notifier = ref.read(playlistMutationsProvider.notifier);
+          if (isSaved) {
+            await notifier.unsaveAlbumFromLibrary(userId: user.id, albumId: album.id);
+            if (mounted) {
+              ref.invalidate(isAlbumSavedProvider);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Álbum removido da sua biblioteca.'), backgroundColor: AppColors.surface),
+              );
+            }
+          } else {
+            await notifier.saveAlbumToLibrary(
+              userId: user.id,
+              album: AlbumSaveData(
+                id: album.id,
+                title: album.title,
+                artistName: album.artistName,
+                coverUrl: album.coverUrl,
+                trackCount: album.tracks.length,
+              ),
+            );
+            if (mounted) {
+              ref.invalidate(isAlbumSavedProvider);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Álbum salvo na sua biblioteca!'), backgroundColor: AppColors.success),
+              );
+            }
+          }
+        },
+      ),
+      IconButton(
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+          child: const Icon(Icons.copy, color: AppColors.textPrimary),
+        ),
+        tooltip: 'Copiar como playlist',
+        onPressed: () => _showCopyAlbumDialog(context, album, user.id),
+      ),
+    ];
+  }
+
+  void _showCopyAlbumDialog(BuildContext context, AlbumModel album, String userId) {
+    final titleController = TextEditingController(text: album.title);
+    final descriptionController = TextEditingController(text: album.artistName);
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.copy, color: AppColors.primary, size: 24),
+            SizedBox(width: 12),
+            Text('Copiar Álbum', style: TextStyle(color: AppColors.textPrimary)),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: titleController,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Título da playlist *'),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Informe um título' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: descriptionController,
+                style: const TextStyle(color: AppColors.textPrimary),
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Descrição (opcional)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(ctx);
+
+              final playlistModel = PlaylistModel(
+                id: album.id,
+                title: album.title,
+                description: album.artistName,
+                coverUrl: album.coverUrl,
+                tracks: album.tracks
+                    .map((t) => PlaylistTrackModel(
+                          id: t.id,
+                          title: t.title,
+                          artistName: t.artistName,
+                          albumName: t.albumName ?? album.title,
+                          thumbnailUrl: t.thumbnailUrl,
+                          videoId: t.videoId,
+                          duration: t.duration,
+                        ))
+                    .toList(),
+                createdAt: DateTime.now(),
+                isPublic: false,
+                type: PlaylistType.custom,
+              );
+
+              final customCopy = await ref
+                  .read(playlistMutationsProvider.notifier)
+                  .duplicatePlaylistAsCustom(
+                    userId: userId,
+                    sourcePlaylist: playlistModel,
+                    customTitle: titleController.text.trim(),
+                    customDescription: descriptionController.text.trim().isNotEmpty
+                        ? descriptionController.text.trim()
+                        : null,
+                  );
+
+              if (context.mounted && customCopy != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Playlist "${customCopy.title}" criada!'), backgroundColor: AppColors.success),
+                );
+                context.push('/playlist/${customCopy.id}');
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('Copiar', style: TextStyle(color: AppColors.textPrimary)),
+          ),
+        ],
+      ),
+    );
+  }
+
 }

@@ -371,6 +371,7 @@ class FirestorePlaylistRepository implements PlaylistRepository {
       description: ytPlaylist.description,
       coverUrl: ytPlaylist.coverUrl,
       tracks: const [],
+      trackCount: ytPlaylist.trackCount,
       createdAt: DateTime.now(),
       isPublic: true,
       type: PlaylistType.youtube,
@@ -404,13 +405,15 @@ class FirestorePlaylistRepository implements PlaylistRepository {
   Future<PlaylistModel> duplicatePlaylistAsCustom({
     required String userId,
     required PlaylistModel sourcePlaylist,
+    String? customTitle,
+    String? customDescription,
   }) async {
     final newDoc = _playlistsRef.doc();
     final customPlaylist = PlaylistModel(
       id: newDoc.id,
       userId: userId,
-      title: '${sourcePlaylist.title} (Cópia)',
-      description: sourcePlaylist.description,
+      title: customTitle ?? '${sourcePlaylist.title} (Cópia)',
+      description: customDescription ?? sourcePlaylist.description,
       coverUrl: sourcePlaylist.coverUrl,
       tracks: sourcePlaylist.tracks,
       createdAt: DateTime.now(),
@@ -486,7 +489,8 @@ class FirestorePlaylistRepository implements PlaylistRepository {
 
       await docRef.update({
         'tracks': updatedTracks.map((t) => t.toJson()).toList(),
-        'coverUrl': ?coverUrl,
+        'trackCount': updatedTracks.length,
+        'coverUrl': coverUrl,
       });
     }
   }
@@ -510,8 +514,108 @@ class FirestorePlaylistRepository implements PlaylistRepository {
 
       await docRef.update({
         'tracks': updatedTracks.map((t) => t.toJson()).toList(),
+        'trackCount': updatedTracks.length,
       });
     }
+  }
+
+  @override
+  Future<void> updatePlaylist({
+    required String playlistId,
+    String? title,
+    String? description,
+  }) async {
+    final updates = <String, dynamic>{};
+    if (title != null) updates['title'] = title;
+    if (description != null) updates['description'] = description;
+    if (updates.isNotEmpty) {
+      await _playlistsRef.doc(playlistId).update(updates);
+    }
+  }
+
+  @override
+  Future<void> reorderPlaylistTracks({
+    required String playlistId,
+    required List<PlaylistTrackModel> tracks,
+  }) async {
+    final docRef = _playlistsRef.doc(playlistId);
+    final doc = await docRef.get();
+    if (doc.exists && doc.data() != null) {
+      final playlist = PlaylistModel.fromJson({...doc.data()!, 'id': doc.id});
+      if (playlist.type != PlaylistType.custom) return;
+      await docRef.update({
+        'tracks': tracks.map((t) => t.toJson()).toList(),
+        'trackCount': tracks.length,
+      });
+    }
+  }
+
+  @override
+  Future<void> saveAlbumToLibrary({
+    required String userId,
+    required AlbumSaveData album,
+  }) async {
+    final query = await _playlistsRef
+        .where('userId', isEqualTo: userId)
+        .where('originalYtPlaylistId', isEqualTo: album.id)
+        .get();
+
+    if (query.docs.isNotEmpty) return;
+
+    final newDoc = _playlistsRef.doc();
+    final savedModel = PlaylistModel(
+      id: newDoc.id,
+      userId: userId,
+      title: album.title,
+      description: album.artistName,
+      coverUrl: album.coverUrl,
+      tracks: const [],
+      trackCount: album.trackCount,
+      createdAt: DateTime.now(),
+      isPublic: true,
+      type: PlaylistType.album,
+      originalYtPlaylistId: album.id,
+    );
+
+    await newDoc.set(savedModel.toJson());
+  }
+
+  @override
+  Future<void> unsaveAlbumFromLibrary({
+    required String userId,
+    required String albumId,
+  }) async {
+    final query = await _playlistsRef
+        .where('userId', isEqualTo: userId)
+        .where('originalYtPlaylistId', isEqualTo: albumId)
+        .get();
+
+    for (final doc in query.docs) {
+      await doc.reference.delete();
+    }
+
+    final doc = await _playlistsRef.doc(albumId).get();
+    if (doc.exists && doc.data()?['userId'] == userId) {
+      await doc.reference.delete();
+    }
+  }
+
+  @override
+  Future<bool> isAlbumSaved({
+    required String userId,
+    required String albumId,
+  }) async {
+    if (userId.isEmpty) return false;
+
+    final query = await _playlistsRef
+        .where('userId', isEqualTo: userId)
+        .where('originalYtPlaylistId', isEqualTo: albumId)
+        .get();
+
+    if (query.docs.isNotEmpty) return true;
+
+    final doc = await _playlistsRef.doc(albumId).get();
+    return doc.exists && doc.data()?['userId'] == userId;
   }
 
   @override

@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../controllers/artist_controller.dart';
 import '../../../../features/player/presentation/controllers/player_controller.dart';
 import '../../../../features/player/presentation/views/full_player_screen.dart';
+import '../../../../features/player/presentation/widgets/song_context_menu_bottom_sheet.dart';
 
 class ArtistSongsScreen extends ConsumerWidget {
   final String artistId;
@@ -64,7 +65,10 @@ class ArtistSongsScreen extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
                 ),
-                trailing: const Icon(Icons.more_vert, color: AppColors.textMuted),
+                trailing: IconButton(
+                  icon: const Icon(Icons.more_vert, color: AppColors.textMuted),
+                  onPressed: () => showSongContextMenuBottomSheet(context, ref, track: song),
+                ),
                 onTap: () {
                   ref.read(playerControllerProvider.notifier).playQueue(songs, initialIndex: index);
                   FullPlayerScreen.show(context);
