@@ -1,5 +1,6 @@
 import 'package:cookie_jar/cookie_jar.dart' as cookie_jar;
 import 'package:dart_ytmusic_api/dart_ytmusic_api.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:newpipeextractor_dart/newpipeextractor_dart.dart';
 
@@ -8,11 +9,6 @@ import '../../presentation/controllers/settings_controller.dart';
 
 /// Normaliza o texto bruto de cookies.txt para uma string de pares
 /// "nome=valor" separados por "; ".
-///
-/// Lida com:
-/// - Formato Netscape (tab separado, coluna 6 = nome, coluna 7 = valor)
-/// - Uma linha por cookie (nome=valor)
-/// - Formato raw header (nome=valor; nome=valor)
 String _normalizeCookies(String raw) {
   final pairs = <String>{};
   final lines = raw.split('\n');
@@ -21,7 +17,6 @@ String _normalizeCookies(String raw) {
     final trimmed = line.trim();
     if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
 
-    // Tenta parsear como Netscape: domain TAB flag TAB path TAB secure TAB expiry TAB name TAB value
     if (trimmed.contains('\t')) {
       final parts = trimmed.split('\t');
       if (parts.length >= 7) {
@@ -34,7 +29,6 @@ String _normalizeCookies(String raw) {
       }
     }
 
-    // Tenta parsear como raw header (nome=valor; nome=valor)
     if (trimmed.contains('; ')) {
       for (final segment in trimmed.split('; ')) {
         final seg = segment.trim();
@@ -45,7 +39,6 @@ String _normalizeCookies(String raw) {
       continue;
     }
 
-    // Tenta parsear como nome=valor simples
     if (trimmed.contains('=')) {
       pairs.add(trimmed);
     }
@@ -54,11 +47,7 @@ String _normalizeCookies(String raw) {
   return pairs.join('; ');
 }
 
-/// Aplica cookies às bibliotecas que consomem YouTube:
-/// [YTMusic] (dart_ytmusic_api) e [CookieExtractor] (newpipeextractor_dart).
-///
-/// Para YTMusic: usa o cookieJar público para adicionar os cookies.
-/// Para newpipe: usa CookieExtractor.setCookie estático.
+/// Aplica cookies às bibliotecas que consomem YouTube.
 void applyCookies(String rawCookies) {
   if (rawCookies.trim().isEmpty) return;
 
@@ -90,12 +79,20 @@ void _applyToNewpipe(String cookies) {
   } catch (_) {}
 }
 
-/// Carrega cookies do Firestore e inicializa as bibliotecas.
+/// Carrega cookies do Firestore (por usuário) e inicializa as bibliotecas.
 /// Chamado em main.dart ANTES do runApp.
 Future<void> initializeLibrariesWithCookies() async {
   final repo = FirestoreSettingsRepository();
-  final rawCookies = await repo.getCookies();
   final ytMusic = YTMusic();
+
+  // Tenta carregar cookies do usuário atual (Firebase Auth restaura sessão automaticamente)
+  String? rawCookies;
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    try {
+      rawCookies = await repo.getCookies(userId: user.uid);
+    } catch (_) {}
+  }
 
   if (rawCookies != null && rawCookies.isNotEmpty) {
     final normalized = _normalizeCookies(rawCookies);

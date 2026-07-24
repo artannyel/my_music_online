@@ -8,20 +8,20 @@ class FirestoreSettingsRepository implements SettingsRepository {
   FirestoreSettingsRepository({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  DocumentReference<Map<String, dynamic>> get _cookiesDoc =>
-      _firestore.collection('config').doc('ytmusic_cookies');
+  DocumentReference<Map<String, dynamic>> _cookiesDoc(String userId) =>
+      _firestore.collection('users').doc(userId).collection('config').doc('ytmusic_cookies');
 
   @override
-  Future<void> saveCookies(String cookiesText) async {
-    await _cookiesDoc.set({
+  Future<void> saveCookies(String cookiesText, {required String userId}) async {
+    await _cookiesDoc(userId).set({
       'cookiesText': cookiesText,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
   @override
-  Future<String?> getCookies() async {
-    final doc = await _cookiesDoc.get();
+  Future<String?> getCookies({required String userId}) async {
+    final doc = await _cookiesDoc(userId).get();
     if (!doc.exists) return null;
     final data = doc.data();
     if (data == null) return null;
@@ -30,8 +30,8 @@ class FirestoreSettingsRepository implements SettingsRepository {
   }
 
   @override
-  Stream<String?> watchCookies() {
-    return _cookiesDoc.snapshots().map((snapshot) {
+  Stream<String?> watchCookies({required String userId}) {
+    return _cookiesDoc(userId).snapshots().map((snapshot) {
       if (!snapshot.exists) return null;
       final data = snapshot.data();
       if (data == null) return null;
@@ -41,7 +41,7 @@ class FirestoreSettingsRepository implements SettingsRepository {
   }
 
   @override
-  Future<void> removeCookies() async {
-    await _cookiesDoc.delete();
+  Future<void> removeCookies({required String userId}) async {
+    await _cookiesDoc(userId).delete();
   }
 }

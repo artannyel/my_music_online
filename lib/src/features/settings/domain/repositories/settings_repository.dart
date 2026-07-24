@@ -1,6 +1,6 @@
 abstract class SettingsRepository {
-  Future<void> saveCookies(String cookiesText);
-  Future<String?> getCookies();
-  Stream<String?> watchCookies();
-  Future<void> removeCookies();
+  Future<void> saveCookies(String cookiesText, {required String userId});
+  Future<String?> getCookies({required String userId});
+  Stream<String?> watchCookies({required String userId});
+  Future<void> removeCookies({required String userId});
 }
