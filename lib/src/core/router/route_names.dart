@@ -14,6 +14,7 @@ class RouteNames {
   static const String equalizer = '/equalizer';
   static const String settings = '/settings';
   static const String cookiesManagement = '/settings/cookies';
+  static const String downloads = '/downloads';
   static const String login = '/login';
   static const String register = '/register';
 }

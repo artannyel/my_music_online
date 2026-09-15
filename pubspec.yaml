@@ -60,6 +60,8 @@ dependencies:
   cookie_jar: ^4.0.9
   shared_preferences: ^2.2.3
   yt_extractor: ^0.1.0
+  path_provider: ^2.1.6
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

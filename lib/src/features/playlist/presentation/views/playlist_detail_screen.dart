@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../download/presentation/controllers/download_controller.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
@@ -389,6 +390,28 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                               ),
                             ),
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton(
+                            onPressed: playlist.tracks.isEmpty
+                                ? null
+                                : () {
+                                    final queue = _mapTracksToAudioQueue(playlist.tracks);
+                                    ref.read(downloadControllerProvider.notifier).downloadPlaylist(queue, playlist.title);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Iniciando download de "${playlist.title}" em subpasta...'),
+                                        backgroundColor: AppColors.surface,
+                                        duration: const Duration(seconds: 3),
+                                      ),
+                                    );
+                                  },
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.divider),
+                              padding: const EdgeInsets.all(14),
+                              shape: const CircleBorder(),
+                            ),
+                            child: const Icon(Icons.download_for_offline_rounded, color: AppColors.textPrimary, size: 22),
                           ),
                           const SizedBox(width: 12),
                           OutlinedButton(

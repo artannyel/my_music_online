@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../download/presentation/widgets/download_button_widget.dart';
 import '../../../playlist/domain/models/playlist_model.dart';
 import '../../../playlist/presentation/controllers/playlist_controller.dart';
 import '../../../playlist/presentation/widgets/add_to_playlist_bottom_sheet.dart';
@@ -183,9 +184,13 @@ class FullPlayerScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.playlist_add_rounded, color: AppColors.primary, size: 28),
-                      onPressed: () {
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DownloadButtonWidget(track: track, iconSize: 28),
+                        IconButton(
+                          icon: const Icon(Icons.playlist_add_rounded, color: AppColors.primary, size: 28),
+                          onPressed: () {
                         AddToPlaylistBottomSheet.show(
                           context,
                           track: PlaylistTrackModel(
@@ -202,6 +207,8 @@ class FullPlayerScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+              ],
+            ),
 
                 // Scrubber Slider (Barra de Progresso com Tempo Decorrido/Total)
                 Column(

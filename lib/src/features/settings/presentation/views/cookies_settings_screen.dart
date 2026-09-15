@@ -6,6 +6,8 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/models/user_model.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../download/domain/models/download_task_model.dart';
+import '../../../download/presentation/controllers/download_controller.dart';
 
 class CookiesSettingsScreen extends ConsumerWidget {
   const CookiesSettingsScreen({super.key});
@@ -109,7 +111,7 @@ class CookiesSettingsScreen extends ConsumerWidget {
         children: [
           _buildUserCard(user),
           const SizedBox(height: 32),
-          _buildMenuSection(context),
+          _buildMenuSection(context, ref),
           const Spacer(),
           _buildLogoutButton(ref, isLoggingOut),
           const SizedBox(height: 20),
@@ -172,7 +174,10 @@ class CookiesSettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMenuSection(BuildContext context) {
+  Widget _buildMenuSection(BuildContext context, WidgetRef ref) {
+    final downloadState = ref.watch(downloadControllerProvider);
+    final downloadNotifier = ref.read(downloadControllerProvider.notifier);
+
     return Material(
       color: AppColors.surface,
       shape: RoundedRectangleBorder(
@@ -183,6 +188,57 @@ class CookiesSettingsScreen extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          _buildMenuItem(
+            icon: Icons.download_for_offline_rounded,
+            title: 'Downloads & Músicas Off-line',
+            subtitle: '${downloadState.offlineTracks.length} faixas salvas',
+            onTap: () => context.push(RouteNames.downloads),
+          ),
+          const Divider(color: AppColors.divider, height: 1, indent: 56),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.cardBackground,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.audio_file_rounded, color: AppColors.primary, size: 22),
+            ),
+            title: const Text(
+              'Formato dos Downloads',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            subtitle: Text(
+              downloadState.preferredFormat.label,
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+            trailing: DropdownButton<AudioFormat>(
+              value: downloadState.preferredFormat,
+              dropdownColor: AppColors.surface,
+              underline: const SizedBox.shrink(),
+              items: AudioFormat.values.map((fmt) {
+                return DropdownMenuItem<AudioFormat>(
+                  value: fmt,
+                  child: Text(
+                    fmt.name.toUpperCase(),
+                    style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+                  ),
+                );
+              }).toList(),
+              onChanged: (newFmt) {
+                if (newFmt != null) {
+                  downloadNotifier.setPreferredFormat(newFmt);
+                }
+              },
+            ),
+          ),
+          const Divider(color: AppColors.divider, height: 1, indent: 56),
           _buildMenuItem(
             icon: Icons.graphic_eq_rounded,
             title: 'Equalizador de Áudio',
