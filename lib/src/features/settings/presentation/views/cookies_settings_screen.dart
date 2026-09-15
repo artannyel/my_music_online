@@ -33,10 +33,12 @@ class CookiesSettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildGuestView(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32.0),
-        child: Column(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
+          child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
@@ -96,8 +98,9 @@ class CookiesSettingsScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildUserSettings(
     BuildContext context,
@@ -105,14 +108,15 @@ class CookiesSettingsScreen extends ConsumerWidget {
     UserModel user,
     bool isLoggingOut,
   ) {
-    return Padding(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(20.0),
       child: Column(
         children: [
           _buildUserCard(user),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           _buildMenuSection(context, ref),
-          const Spacer(),
+          const SizedBox(height: 32),
           _buildLogoutButton(ref, isLoggingOut),
           const SizedBox(height: 20),
         ],
