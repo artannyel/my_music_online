@@ -36,10 +36,7 @@ class AudioPlayerService {
     try {
       final info = await extractor.getStreamInfo(musicUrl);
       final audio = info.bestAudioStream;
-      debugPrint('[YtExtractor] --- Name: ${info.name}');
       if (audio != null) {
-        debugPrint('[YtExtractor] --- url: ${audio.url}');
-        debugPrint(audio.url);
         await _audioPlayer.setUrl(audio.url);
         return;
       }
