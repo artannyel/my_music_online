@@ -88,7 +88,7 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final controller = container.read(equalizerControllerProvider.notifier);
+      container.read(equalizerControllerProvider.notifier);
       await Future.delayed(const Duration(milliseconds: 50));
 
       final state = container.read(equalizerControllerProvider);
