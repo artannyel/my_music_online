@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../playlist/domain/models/playlist_model.dart';
@@ -82,7 +84,16 @@ class FullPlayerScreen extends ConsumerWidget {
           centerTitle: true,
           actions: [
             IconButton(
+              icon: const Icon(Icons.graphic_eq_rounded, color: AppColors.textPrimary, size: 26),
+              tooltip: 'Equalizador',
+              onPressed: () {
+                Navigator.of(context).pop();
+                context.push(RouteNames.equalizer);
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.playlist_play_rounded, color: AppColors.textPrimary, size: 28),
+              tooltip: 'Fila de reprodução',
               onPressed: () => _showQueueBottomSheet(context, ref, playerState),
             ),
           ],

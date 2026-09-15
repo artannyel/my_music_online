@@ -26,7 +26,7 @@ lib/src/features/equalizer/
 ```
 
 ## 4. Divisão de Tasks
-- [ ] [Task 1: Domain - Modelo EqualizerPresetModel](./task-1-domain-models.md)
-- [ ] [Task 2: Data - Repositório de Equalização (just_audio audio_service)](./task-2-equalizer-repository.md)
-- [ ] [Task 3: Presentation - Controller em Riverpod](./task-3-equalizer-riverpod-controller.md)
-- [ ] [Task 4: Presentation - Interface de Usuário EqualizerScreen (Stitch)](./task-4-equalizer-screen-ui.md)
+- [x] [Task 1: Domain - Modelo EqualizerPresetModel](./task-1-domain-models.md)
+- [x] [Task 2: Data - Repositório de Equalização (just_audio audio_service)](./task-2-equalizer-repository.md)
+- [x] [Task 3: Presentation - Controller em Riverpod](./task-3-equalizer-riverpod-controller.md)
+- [x] [Task 4: Presentation - Interface de Usuário EqualizerScreen (Stitch)](./task-4-equalizer-screen-ui.md)

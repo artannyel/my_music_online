@@ -184,6 +184,13 @@ class CookiesSettingsScreen extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildMenuItem(
+            icon: Icons.graphic_eq_rounded,
+            title: 'Equalizador de Áudio',
+            subtitle: 'Controles de som e presets',
+            onTap: () => context.push(RouteNames.equalizer),
+          ),
+          const Divider(color: AppColors.divider, height: 1, indent: 56),
+          _buildMenuItem(
             icon: Icons.cookie_outlined,
             title: 'Cookies do YouTube',
             subtitle: 'Gerenciar arquivo de cookies',
