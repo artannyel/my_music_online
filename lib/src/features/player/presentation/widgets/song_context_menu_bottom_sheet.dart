@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../playlist/domain/models/playlist_model.dart';
 import '../../../playlist/presentation/widgets/add_to_playlist_bottom_sheet.dart';
@@ -220,16 +219,6 @@ class _SongContextMenuContent extends ConsumerWidget {
                   },
                 ),
               ],
-              const SizedBox(height: 4),
-              _MenuOption(
-                icon: Icons.graphic_eq_rounded,
-                label: 'Equalizador de Áudio',
-                subtitle: 'Ajuste de frequências e presets de áudio',
-                onTap: () {
-                  Navigator.of(context).pop();
-                  context.push(RouteNames.equalizer);
-                },
-              ),
               if (isFromQueue && queueIndex >= 0) ...[
                 const SizedBox(height: 4),
                 _MenuOption(
