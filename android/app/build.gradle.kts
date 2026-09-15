@@ -12,7 +12,7 @@ configurations.all {
 
 dependencies {
   implementation(platform("com.google.firebase:firebase-bom:34.16.0"))
-  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
 }
 
 android {

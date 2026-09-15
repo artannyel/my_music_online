@@ -8,9 +8,14 @@ import 'package:my_music_online/src/features/player/data/services/app_audio_hand
 import 'package:my_music_online/src/features/player/data/services/audio_handler_provider.dart';
 import 'package:my_music_online/src/features/player/presentation/controllers/player_controller.dart';
 import 'package:my_music_online/src/features/settings/data/services/yt_cookies_service.dart';
+import 'package:yt_extractor/yt_extractor.dart';
+
+final extractor = YtExtractor();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await extractor.init();
   
   // Inicialização assíncrona do Firebase
   await FirebaseService.initialize();

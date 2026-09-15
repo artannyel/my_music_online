@@ -1,8 +1,6 @@
-// ignore_for_file: experimental_member_use
-
-import 'package:audios_resolver/audios_resolver.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:yt_extractor/yt_extractor.dart';
 import '../../domain/models/player_state_model.dart';
 
 /// Serviço do Player de Áudio focado no just_audio e AudiosResolver
@@ -33,12 +31,21 @@ class AudioPlayerService {
   /// Prepara o áudio carregando a URL sem iniciar a reprodução.
   Future<void> setTrack(AudioTrackModel track) async {
     debugPrint('[AudioPlayerService] --- setTrack: "${track.title}" (videoId: ${track.videoId}) ---');
-
-    final result = await AudiosResolver.fetchSingle(videoId: track.videoId, forceRefresh: true);
-    if (result?.url != null) {
-      await _audioPlayer.setUrl(result!.url);
-    } else {
-      throw Exception('URL não encontrada no AudiosResolver');
+    final musicUrl = 'https://youtube.com/watch?v=${track.videoId}';
+    final extractor = YtExtractor();
+    try {
+      final info = await extractor.getStreamInfo(musicUrl);
+      final audio = info.bestAudioStream;
+      debugPrint('[YtExtractor] --- Name: ${info.name}');
+      if (audio != null) {
+        debugPrint('[YtExtractor] --- url: ${audio.url}');
+        debugPrint(audio.url);
+        await _audioPlayer.setUrl(audio.url);
+        return;
+      }
+    } catch (e) {
+      debugPrint('[YtExtractor] --- Error extracting track: $e');
+      throw Exception('URL não encontrada no YtExtractor');
     }
   }
 
