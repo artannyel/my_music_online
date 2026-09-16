@@ -16,13 +16,17 @@ lib/src/features/search/
 │   └── repositories/
 │       └── search_repository.dart
 ├── data/
-│   └── repositories/
-│       └── ytmusic_search_repository.dart
+│   ├── repositories/
+│   │   └── ytmusic_search_repository.dart
+│   └── services/
+│       └── speech_to_text_service.dart
 └── presentation/
     ├── controllers/
     │   └── search_controller.dart
-    └── views/
-        └── search_screen.dart
+    ├── views/
+    │   └── search_screen.dart
+    └── widgets/
+        └── voice_search_bottom_sheet.dart
 ```
 
 ## 4. Divisão de Tasks
@@ -30,3 +34,4 @@ lib/src/features/search/
 - [x] [Task 2: Data - Repositório de Busca (dart_ytmusic_api)](./task-2-ytmusic-search-repository.md)
 - [x] [Task 3: Presentation - Controller com Debounce (Riverpod)](./task-3-search-riverpod-controller.md)
 - [x] [Task 4: Presentation - Interface de Busca SearchScreen (Stitch)](./task-4-search-screen-ui.md)
+- [ ] [Task 5: Voice Search - Pesquisa por Voz e Modal Animado (SpeechToText)](./task-5-voice-search.md)
