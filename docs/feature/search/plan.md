@@ -34,4 +34,4 @@ lib/src/features/search/
 - [x] [Task 2: Data - Repositório de Busca (dart_ytmusic_api)](./task-2-ytmusic-search-repository.md)
 - [x] [Task 3: Presentation - Controller com Debounce (Riverpod)](./task-3-search-riverpod-controller.md)
 - [x] [Task 4: Presentation - Interface de Busca SearchScreen (Stitch)](./task-4-search-screen-ui.md)
-- [ ] [Task 5: Voice Search - Pesquisa por Voz e Modal Animado (SpeechToText)](./task-5-voice-search.md)
+- [x] [Task 5: Voice Search - Pesquisa por Voz e Modal Animado (SpeechToText)](./task-5-voice-search.md)

@@ -10,6 +10,7 @@ import '../../../player/presentation/widgets/song_context_menu_bottom_sheet.dart
 import '../../../../core/widgets/offline_fallback_widget.dart';
 import '../../domain/models/search_result_model.dart';
 import '../controllers/search_controller.dart';
+import '../widgets/voice_search_bottom_sheet.dart';
 
 /// SearchScreen exibe a interface de busca com autocompletar dinâmico (getSearchSuggestions),
 /// chips de filtro e integração nativa com o Rádio Automix do Player.
@@ -57,6 +58,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
   }
 
+  Future<void> _openVoiceSearch() async {
+    final recognizedQuery = await VoiceSearchBottomSheet.show(context);
+    if (recognizedQuery != null && recognizedQuery.trim().isNotEmpty) {
+      _submitSearch(recognizedQuery);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(searchQueryProvider);
@@ -87,16 +95,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               hintText: 'Pesquisar músicas, artistas, álbuns...',
               hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
               prefixIcon: const Icon(Icons.search, color: AppColors.primary, size: 22),
-              suffixIcon: query.isNotEmpty
-                  ? IconButton(
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (query.isNotEmpty)
+                    IconButton(
                       icon: const Icon(Icons.clear, color: AppColors.textSecondary, size: 20),
                       onPressed: () {
                         _textController.clear();
                         ref.read(searchQueryProvider.notifier).state = '';
                         ref.read(isSearchSubmittedProvider.notifier).state = false;
                       },
-                    )
-                  : null,
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.mic_rounded, color: AppColors.primary, size: 22),
+                    tooltip: 'Pesquisar por voz',
+                    onPressed: _openVoiceSearch,
+                  ),
+                ],
+              ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
             ),
