@@ -43,6 +43,7 @@ class OfflineTrackModel {
       albumName: albumName,
       thumbnailUrl: thumbnailUrl,
       duration: duration,
+      audioUrl: localFilePath,
     );
   }
 
