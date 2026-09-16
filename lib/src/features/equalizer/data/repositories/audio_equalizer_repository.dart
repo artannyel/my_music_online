@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/models/equalizer_preset_model.dart';
 import '../../domain/repositories/equalizer_repository.dart';
+import '../../../player/data/services/audio_player_service.dart';
 
 const String _prefsEqEnabledKey = 'equalizer_enabled';
 const String _prefsEqPresetIdKey = 'equalizer_preset_id';
@@ -10,6 +11,9 @@ const String _prefsEqGainsKey = 'equalizer_band_gains';
 
 /// Repositório concreto para gerenciamento e persistência da equalização de áudio.
 class AudioEqualizerRepository implements EqualizerRepository {
+  final AudioPlayerService? audioPlayerService;
+
+  AudioEqualizerRepository({this.audioPlayerService});
   static final List<EqualizerPresetModel> defaultPresets = [
     EqualizerPresetModel(
       id: 'flat',
@@ -59,6 +63,21 @@ class AudioEqualizerRepository implements EqualizerRepository {
     }
   }
 
+  /// Inicializa e sincroniza os efeitos do equalizador no player de áudio
+  /// de acordo com as preferências previamente salvas.
+  Future<void> initAudioEffects() async {
+    final service = audioPlayerService;
+    if (service == null) return;
+    try {
+      final enabled = await isEnabled();
+      final gains = await getBandGains();
+      await service.setEqualizerEnabled(enabled);
+      await service.setAllBandGains(gains);
+    } catch (e) {
+      debugPrint('[AudioEqualizerRepository] Erro ao sincronizar efeitos de áudio: $e');
+    }
+  }
+
   @override
   Future<void> setEnabled(bool enabled) async {
     try {
@@ -67,6 +86,7 @@ class AudioEqualizerRepository implements EqualizerRepository {
     } catch (e) {
       debugPrint('[AudioEqualizerRepository] Erro ao salvar status do equalizador: $e');
     }
+    await audioPlayerService?.setEqualizerEnabled(enabled);
   }
 
   @override
@@ -110,6 +130,7 @@ class AudioEqualizerRepository implements EqualizerRepository {
     } catch (e) {
       debugPrint('[AudioEqualizerRepository] Erro ao definir ganho da banda: $e');
     }
+    await audioPlayerService?.setBandGain(frequencyHz, gainDb);
   }
 
   @override
@@ -125,6 +146,7 @@ class AudioEqualizerRepository implements EqualizerRepository {
     } catch (e) {
       debugPrint('[AudioEqualizerRepository] Erro ao aplicar preset: $e');
     }
+    await audioPlayerService?.setAllBandGains(preset.bandGains);
   }
 
   @override
