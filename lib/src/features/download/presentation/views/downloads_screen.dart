@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
+import '../../domain/models/download_task_model.dart';
 import '../../domain/models/offline_track_model.dart';
 import '../controllers/download_controller.dart';
 
@@ -147,6 +148,9 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
                   ),
                 ),
 
+                // Card de Downloads em Andamento (se houver)
+                _buildActiveDownloadsCard(context, downloadState.activeDownloads, downloadNotifier),
+
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -161,6 +165,157 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildActiveDownloadsCard(
+    BuildContext context,
+    Map<String, DownloadTaskModel> activeDownloads,
+    DownloadController downloadNotifier,
+  ) {
+    if (activeDownloads.isEmpty) return const SizedBox.shrink();
+
+    final activeTasks = activeDownloads.values.toList();
+    final downloadingCount = activeTasks.where((t) => t.status == DownloadStatus.downloading).length;
+    final pendingCount = activeTasks.where((t) => t.status == DownloadStatus.pending).length;
+
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Downloads em Andamento (${activeTasks.length})',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              TextButton.icon(
+                onPressed: () => downloadNotifier.cancelAllActiveDownloads(),
+                icon: const Icon(Icons.close, color: AppColors.error, size: 16),
+                label: const Text(
+                  'Cancelar Todos',
+                  style: TextStyle(color: AppColors.error, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$downloadingCount baixando • $pendingCount na fila aguardando',
+            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 180),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: activeTasks.length,
+              separatorBuilder: (_, index) => const Divider(color: AppColors.divider, height: 1),
+              itemBuilder: (context, index) {
+                final task = activeTasks[index];
+                final isDownloading = task.status == DownloadStatus.downloading;
+                final progressPercent = (task.progress * 100).toInt();
+
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      color: AppColors.cardBackground,
+                      child: task.thumbnailUrl != null
+                          ? Image.network(task.thumbnailUrl!, fit: BoxFit.cover)
+                          : const Icon(Icons.music_note, color: AppColors.primary, size: 20),
+                    ),
+                  ),
+                  title: Text(
+                    task.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            isDownloading ? 'Baixando... $progressPercent%' : 'Na fila (Aguardando...)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isDownloading ? FontWeight.bold : FontWeight.normal,
+                              color: isDownloading ? AppColors.primary : AppColors.textSecondary,
+                            ),
+                          ),
+                          if (task.playlistName != null)
+                            Text(
+                              task.playlistName!,
+                              style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      LinearProgressIndicator(
+                        value: isDownloading ? (task.progress > 0 ? task.progress : null) : 0,
+                        backgroundColor: AppColors.cardBackground,
+                        color: isDownloading ? AppColors.primary : AppColors.divider,
+                        minHeight: 3,
+                      ),
+                    ],
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.cancel_outlined, color: AppColors.textMuted, size: 18),
+                    tooltip: 'Cancelar este download',
+                    onPressed: () => downloadNotifier.cancelDownload(task.trackId),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 

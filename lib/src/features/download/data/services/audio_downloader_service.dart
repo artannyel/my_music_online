@@ -70,6 +70,7 @@ class AudioDownloaderService {
 
     try {
       final targetDir = await _getBaseDirectory(playlistName: playlistName);
+      debugPrint('[AudioDownloaderService] --- Target directory: ${targetDir.path} ---');
       final file = File('${targetDir.path}/$fileName');
 
       final musicUrl = 'https://youtube.com/watch?v=${track.videoId}';

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../download/presentation/controllers/download_controller.dart';
+import '../../../download/presentation/widgets/download_button_widget.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
@@ -559,6 +560,19 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                         padding: EdgeInsets.only(right: 4),
                                         child: Icon(Icons.volume_up_rounded, color: AppColors.primary, size: 18),
                                       ),
+                                    DownloadButtonWidget(
+                                      track: AudioTrackModel(
+                                        id: track.id,
+                                        videoId: track.videoId ?? track.id,
+                                        title: track.title,
+                                        artistName: track.artistName,
+                                        albumName: track.albumName,
+                                        thumbnailUrl: track.thumbnailUrl,
+                                        duration: track.duration,
+                                      ),
+                                      playlistName: playlist.title,
+                                      iconSize: 20.0,
+                                    ),
                                     IconButton(
                                       icon: const Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
                                       onPressed: () => showSongContextMenuBottomSheet(
@@ -687,6 +701,19 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                       padding: EdgeInsets.only(right: 6.0),
                                       child: Icon(Icons.volume_up_rounded, color: AppColors.primary, size: 22),
                                     ),
+                                  DownloadButtonWidget(
+                                    track: AudioTrackModel(
+                                      id: track.id,
+                                      videoId: track.videoId ?? track.id,
+                                      title: track.title,
+                                      artistName: track.artistName,
+                                      albumName: track.albumName,
+                                      thumbnailUrl: track.thumbnailUrl,
+                                      duration: track.duration,
+                                    ),
+                                    playlistName: playlist.title,
+                                    iconSize: 20.0,
+                                  ),
                                   if (isOwner)
                                     IconButton(
                                       icon: const Icon(Icons.close, color: AppColors.textMuted, size: 20),

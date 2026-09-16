@@ -56,6 +56,7 @@ class DownloadState {
 class DownloadController extends StateNotifier<DownloadState> {
   final DownloadRepository _repository;
   final AudioDownloaderService _downloaderService;
+  final Set<String> _cancelledTrackIds = {};
 
   DownloadController(this._repository, this._downloaderService)
       : super(const DownloadState(isLoading: true)) {
@@ -88,9 +89,26 @@ class DownloadController extends StateNotifier<DownloadState> {
 
   /// Inicia o download de uma faixa individual.
   Future<void> downloadTrack(AudioTrackModel track, {String? playlistName}) async {
-    // Se a faixa já estiver baixada ou sendo baixada, ignorar
-    if (state.activeDownloads.containsKey(track.id)) return;
+    // Se a faixa já estiver baixada ou cancelada, ignorar
     if (state.offlineTracks.any((t) => t.id == track.id || t.videoId == track.videoId)) return;
+
+    _cancelledTrackIds.remove(track.id);
+
+    final initialTask = DownloadTaskModel(
+      id: 'download_${track.id}_${DateTime.now().millisecondsSinceEpoch}',
+      trackId: track.id,
+      title: track.title,
+      artistName: track.artistName,
+      playlistName: playlistName,
+      thumbnailUrl: track.thumbnailUrl,
+      progress: 0.0,
+      status: DownloadStatus.downloading,
+      audioFormat: state.preferredFormat,
+    );
+
+    final initialMap = Map<String, DownloadTaskModel>.from(state.activeDownloads);
+    initialMap[track.id] = initialTask;
+    state = state.copyWith(activeDownloads: initialMap);
 
     final stream = _downloaderService.downloadTrack(
       track: track,
@@ -99,6 +117,13 @@ class DownloadController extends StateNotifier<DownloadState> {
     );
 
     await for (final task in stream) {
+      if (_cancelledTrackIds.contains(track.id)) {
+        final updatedMap = Map<String, DownloadTaskModel>.from(state.activeDownloads);
+        updatedMap.remove(track.id);
+        state = state.copyWith(activeDownloads: updatedMap);
+        break;
+      }
+
       final updatedMap = Map<String, DownloadTaskModel>.from(state.activeDownloads);
       updatedMap[track.id] = task;
 
@@ -118,19 +143,54 @@ class DownloadController extends StateNotifier<DownloadState> {
           offlineTracks: updatedTracks,
           totalStorageBytes: updatedStorage,
         );
-      } else if (task.status == DownloadStatus.failed) {
-        state = state.copyWith(activeDownloads: updatedMap);
       } else {
         state = state.copyWith(activeDownloads: updatedMap);
       }
     }
   }
 
-  /// Inicia o download sequencial de todas as faixas de uma playlist.
+  /// Inicia o download sequencial de todas as faixas de uma playlist exibindo os pendentes na fila.
   Future<void> downloadPlaylist(List<AudioTrackModel> tracks, String playlistTitle) async {
+    final updatedMap = Map<String, DownloadTaskModel>.from(state.activeDownloads);
+
+    // Registra antecipadamente todas as faixas pendentes na fila de ativos
     for (final track in tracks) {
+      if (!state.offlineTracks.any((t) => t.id == track.id || t.videoId == track.videoId) &&
+          !updatedMap.containsKey(track.id)) {
+        updatedMap[track.id] = DownloadTaskModel(
+          id: 'pending_${track.id}',
+          trackId: track.id,
+          title: track.title,
+          artistName: track.artistName,
+          playlistName: playlistTitle,
+          thumbnailUrl: track.thumbnailUrl,
+          progress: 0.0,
+          status: DownloadStatus.pending,
+          audioFormat: state.preferredFormat,
+        );
+      }
+    }
+
+    state = state.copyWith(activeDownloads: updatedMap);
+
+    for (final track in tracks) {
+      if (_cancelledTrackIds.contains(track.id)) continue;
       await downloadTrack(track, playlistName: playlistTitle);
     }
+  }
+
+  /// Cancela o download ativo ou pendente de uma faixa.
+  void cancelDownload(String trackId) {
+    _cancelledTrackIds.add(trackId);
+    final updatedMap = Map<String, DownloadTaskModel>.from(state.activeDownloads);
+    updatedMap.remove(trackId);
+    state = state.copyWith(activeDownloads: updatedMap);
+  }
+
+  /// Cancela todos os downloads ativos e pendentes da fila.
+  void cancelAllActiveDownloads() {
+    _cancelledTrackIds.addAll(state.activeDownloads.keys);
+    state = state.copyWith(activeDownloads: {});
   }
 
   /// Exclui uma faixa baixada do armazenamento.
@@ -159,6 +219,7 @@ class DownloadController extends StateNotifier<DownloadState> {
 
   /// Apaga todos os downloads e limpa o repositório local.
   Future<void> clearAllDownloads() async {
+    cancelAllActiveDownloads();
     await _repository.clearAllDownloads();
     state = state.copyWith(
       offlineTracks: [],

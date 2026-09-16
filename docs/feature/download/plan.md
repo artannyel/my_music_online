@@ -15,10 +15,11 @@ A feature `download` permite baixar faixas individuais ou playlists inteiras par
 ## 2. Referência de Design & UX (Stitch & YouTube Music)
 - **Visual**: Tema escuro com ícones de estado de download (Pendente ⏳, Baixando 🔄 com porcentagem circular, Concluído 🟢 e Erro ⚠️).
 - **Ações**:
-  - Botão de "Baixar Playlist" no cabeçalho da página de detalhes de playlist (`PlaylistDetailScreen`).
-  - Opção "Baixar Música" no player expandido (`FullPlayerScreen`).
-  - Opção de escolha de formato (`.m4a` ou `.mp3`) nas Configurações.
-  - Tela dedicada de "Músicas e Playlists Baixadas" na biblioteca ou nos ajustes (`DownloadsScreen`).
+  - Central de Downloads em Andamento na `DownloadsScreen`: Exibe em tempo real faixas baixando, fila pendente, barras de progresso lineares e botões para cancelar downloads individualmente ou limpar toda a fila.
+  - Botão de "Baixar Playlist" no cabeçalho da página de detalhes de playlist (`PlaylistDetailScreen`), atualizando em tempo real os ícones adaptativos de cada faixa da lista.
+  - Opção "Baixar para ouvir off-line" no menu contextual das músicas (`SongContextMenuBottomSheet`) e player expandido (`FullPlayerScreen`).
+  - Opção de escolha de formato (`.m4a` ou `.mp3`) nas Configurações (`CookiesSettingsScreen`).
+  - Tela dedicada de "Downloads & Off-line" (`DownloadsScreen`) com suporte a limpeza completa de armazenamento e agrupamento por pastas físicas.
 
 ## 3. Arquitetura da Feature
 ```text

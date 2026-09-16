@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../download/domain/models/download_task_model.dart';
+import '../../../download/presentation/controllers/download_controller.dart';
 import '../../../playlist/domain/models/playlist_model.dart';
 import '../../../playlist/presentation/widgets/add_to_playlist_bottom_sheet.dart';
 import '../../domain/models/player_state_model.dart';
@@ -193,6 +195,68 @@ class _SongContextMenuContent extends ConsumerWidget {
                       duration: track.duration,
                     ),
                   );
+                },
+              ),
+              const SizedBox(height: 4),
+              Consumer(
+                builder: (context, ref, child) {
+                  final isDownloaded = ref.watch(isTrackDownloadedProvider(track.id));
+                  final downloadTask = ref.watch(trackDownloadTaskProvider(track.id));
+
+                  if (isDownloaded) {
+                    return _MenuOption(
+                      icon: Icons.check_circle_rounded,
+                      label: 'Música salva off-line',
+                      subtitle: 'Toque para remover do dispositivo',
+                      iconColor: AppColors.success,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        ref.read(downloadControllerProvider.notifier).deleteOfflineTrack(track.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Música removida dos downloads.'),
+                            backgroundColor: AppColors.surface,
+                          ),
+                        );
+                      },
+                    );
+                  } else if (downloadTask != null) {
+                    final isDownloading = downloadTask.status == DownloadStatus.downloading;
+                    final progressPercent = (downloadTask.progress * 100).toInt();
+
+                    return _MenuOption(
+                      icon: isDownloading ? Icons.downloading_rounded : Icons.schedule_rounded,
+                      label: isDownloading ? 'Baixando ($progressPercent%)' : 'Aguardando na fila...',
+                      subtitle: 'Toque para cancelar este download',
+                      iconColor: AppColors.secondary,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        ref.read(downloadControllerProvider.notifier).cancelDownload(track.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Download cancelado.'),
+                            backgroundColor: AppColors.surface,
+                          ),
+                        );
+                      },
+                    );
+                  } else {
+                    return _MenuOption(
+                      icon: Icons.download_for_offline_rounded,
+                      label: 'Baixar para ouvir off-line',
+                      subtitle: 'Salva esta faixa no armazenamento local',
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        ref.read(downloadControllerProvider.notifier).downloadTrack(track);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Iniciando download de "${track.title}"...'),
+                            backgroundColor: AppColors.surface,
+                          ),
+                        );
+                      },
+                    );
+                  }
                 },
               ),
               if (artistId != null) ...[

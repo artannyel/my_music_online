@@ -40,36 +40,71 @@ class DownloadButtonWidget extends ConsumerWidget {
       );
     }
 
-    if (activeTask != null && activeTask.status == DownloadStatus.downloading) {
-      final progress = activeTask.progress;
-      final percentStr = (progress * 100).toInt();
-
-      return Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: SizedBox(
-          width: iconSize,
-          height: iconSize,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CircularProgressIndicator(
-                value: progress > 0 ? progress : null,
-                strokeWidth: 2.5,
-                color: AppColors.primary,
-                backgroundColor: AppColors.cardBackground,
+    if (activeTask != null) {
+      if (activeTask.status == DownloadStatus.pending) {
+        return IconButton(
+          icon: Icon(Icons.schedule_rounded, color: AppColors.secondary, size: iconSize),
+          tooltip: 'Na fila de download (Aguardando...)',
+          onPressed: () {
+            ref.read(downloadControllerProvider.notifier).cancelDownload(track.id);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Download da faixa cancelado.'),
+                backgroundColor: AppColors.surface,
+                duration: Duration(seconds: 2),
               ),
-              Text(
-                '$percentStr%',
-                style: const TextStyle(
-                  fontSize: 8,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+            );
+          },
+        );
+      }
+
+      if (activeTask.status == DownloadStatus.downloading) {
+        final progress = activeTask.progress;
+        final percentStr = (progress * 100).toInt();
+
+        return Tooltip(
+          message: 'Baixando ($percentStr%) - Toque para cancelar',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              ref.read(downloadControllerProvider.notifier).cancelDownload(track.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Download da faixa cancelado.'),
+                  backgroundColor: AppColors.surface,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: SizedBox(
+                width: iconSize,
+                height: iconSize,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      value: progress > 0 ? progress : null,
+                      strokeWidth: 2.5,
+                      color: AppColors.primary,
+                      backgroundColor: AppColors.cardBackground,
+                    ),
+                    Text(
+                      '$percentStr%',
+                      style: const TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
 
     return IconButton(
