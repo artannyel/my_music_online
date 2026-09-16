@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:extractor/extractor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -12,11 +13,45 @@ import '../../domain/models/offline_track_model.dart';
 /// Serviço para extração de stream e salvamento físico dos áudios no sistema de arquivos.
 class AudioDownloaderService {
   final http.Client _client;
+  bool _isExtractorInitialized = false;
 
   static const MethodChannel _mediaScannerChannel =
       MethodChannel('com.arttecsoftware.my_music_online/media_scanner');
 
   AudioDownloaderService({http.Client? client}) : _client = client ?? http.Client();
+
+  Future<bool> _initExtractor() async {
+    if (!kIsWeb && Platform.isAndroid) {
+      if (_isExtractorInitialized) return true;
+      try {
+        final isInit = await YoutubeDLFlutter.instance.isInitialized();
+        if (!isInit) {
+          final res = await YoutubeDLFlutter.instance.initialize(
+            enableFFmpeg: true,
+            enableAria2c: true,
+          );
+          _isExtractorInitialized = res.success;
+          debugPrint('[AudioDownloaderService] YoutubeDL init status: ${res.success}, error: ${res.errorMessage}');
+        } else {
+          _isExtractorInitialized = true;
+        }
+
+        if (_isExtractorInitialized) {
+          // Tenta atualizar o binary do yt-dlp de forma assíncrona
+          YoutubeDLFlutter.instance.updateYoutubeDL().then((up) {
+            debugPrint('[AudioDownloaderService] yt-dlp update status: ${up.status}, version: ${up.version}');
+          }).catchError((e) {
+            debugPrint('[AudioDownloaderService] Aviso ao atualizar yt-dlp: $e');
+          });
+        }
+        return _isExtractorInitialized;
+      } catch (e) {
+        debugPrint('[AudioDownloaderService] Erro ao inicializar extractor: $e');
+        return false;
+      }
+    }
+    return false;
+  }
 
   /// Sanitiza o nome de arquivos e pastas para remover caracteres inválidos do sistema de arquivos.
   static String sanitizeName(String input) {
@@ -64,6 +99,22 @@ class AudioDownloaderService {
     }
   }
 
+  /// Retorna o diretório temporário de trabalho no armazenamento privado para downloads nativos.
+  Future<Directory> _getTempDirectory() async {
+    if (!kIsWeb && Platform.isAndroid) {
+      final extDir = await getExternalStorageDirectory();
+      if (extDir != null) {
+        final tempDir = Directory('${extDir.path}/TempDownloads');
+        if (!await tempDir.exists()) {
+          await tempDir.create(recursive: true);
+        }
+        return tempDir;
+      }
+    }
+    final tempDir = await getTemporaryDirectory();
+    return tempDir;
+  }
+
   /// Notifica o MediaScanner do sistema Android para indexar o novo arquivo de música.
   Future<void> scanMediaFile(String filePath) async {
     if (!kIsWeb && Platform.isAndroid) {
@@ -105,8 +156,141 @@ class AudioDownloaderService {
       final targetDir = await _getBaseDirectory(playlistName: playlistName);
       debugPrint('[AudioDownloaderService] --- Target directory: ${targetDir.path} ---');
       final file = File('${targetDir.path}/$fileName');
-
       final musicUrl = 'https://youtube.com/watch?v=${track.videoId}';
+
+      // Limpa qualquer diretório ou arquivo corrompido pré-existente no caminho do arquivo final
+      if (FileSystemEntity.typeSync(file.path) == FileSystemEntityType.directory) {
+        debugPrint('[AudioDownloaderService] Removendo diretório corrompido residual: ${file.path}');
+        await Directory(file.path).delete(recursive: true);
+      }
+
+      final useNativeExtractor = await _initExtractor();
+
+      if (useNativeExtractor) {
+        debugPrint('[AudioDownloaderService] Baixando via native extractor (yt-dlp + aria2c)...');
+        bool nativeSuccess = false;
+        try {
+          final tempDir = await _getTempDirectory();
+          final tempFile = File('${tempDir.path}/$fileName');
+
+          if (FileSystemEntity.typeSync(tempFile.path) == FileSystemEntityType.directory) {
+            await Directory(tempFile.path).delete(recursive: true);
+          } else if (await tempFile.exists()) {
+            await tempFile.delete();
+          }
+
+          final request = DownloadRequest(
+            url: musicUrl,
+            outputPath: tempDir.path,
+            outputTemplate: '$sanitizedTitle - $sanitizedArtist.${format.extension}',
+            format: 'bestaudio[ext=m4a]/bestaudio/best',
+            embedThumbnail: false,
+            embedMetadata: false,
+            processId: taskId,
+            customOptions: {
+              '--extractor-args': 'youtube:player_client=android,web',
+              '--user-agent':
+                  'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+            },
+          );
+
+          final controller = StreamController<DownloadTaskModel>();
+
+          final progressSub = YoutubeDLFlutter.instance.onProgress.listen((p) {
+            if (p.processId == taskId) {
+              currentTask = currentTask.copyWith(
+                progress: p.progressFraction.clamp(0.0, 1.0),
+                filePath: file.path,
+              );
+              if (!controller.isClosed) {
+                controller.add(currentTask);
+              }
+            }
+          });
+
+          final errorSub = YoutubeDLFlutter.instance.onError.listen((err) {
+            if (err.processId == taskId) {
+              if (!controller.isClosed) {
+                controller.addError(Exception(err.error));
+              }
+            }
+          });
+
+          final downloadFuture = YoutubeDLFlutter.instance.download(request).then((result) async {
+            await progressSub.cancel();
+            await errorSub.cancel();
+
+            if (result.status != OperationStatus.success) {
+              throw Exception(result.errorMessage ?? 'Falha no download via YoutubeDL (Status: ${result.status})');
+            }
+
+            var downloadedPath = result.outputPath ?? tempFile.path;
+            var downloadedFile = File(downloadedPath);
+
+            if (!downloadedFile.existsSync()) {
+              downloadedFile = tempFile;
+            }
+
+            if (!downloadedFile.existsSync()) {
+              throw Exception('Arquivo baixado não foi encontrado no caminho temporário: ${downloadedFile.path}');
+            }
+
+            // Copia o arquivo da pasta temporária privada para o diretório de destino público
+            await downloadedFile.copy(file.path);
+            try {
+              await downloadedFile.delete();
+            } catch (_) {}
+
+            final fileSize = file.existsSync() ? file.lengthSync() : 0;
+
+            await scanMediaFile(file.path);
+
+            currentTask = currentTask.copyWith(
+              progress: 1.0,
+              status: DownloadStatus.completed,
+              filePath: file.path,
+              totalBytes: fileSize,
+              downloadedBytes: fileSize,
+            );
+            if (!controller.isClosed) {
+              controller.add(currentTask);
+              await controller.close();
+            }
+          }).catchError((e, st) {
+            progressSub.cancel();
+            errorSub.cancel();
+            if (!controller.isClosed) {
+              controller.addError(e, st);
+              controller.close();
+            }
+          });
+
+          try {
+            await for (final taskUpdate in controller.stream) {
+              yield taskUpdate;
+            }
+            await downloadFuture;
+            nativeSuccess = true;
+            return;
+          } catch (streamErr) {
+            debugPrint('[AudioDownloaderService] Native extractor falhou na execução ($streamErr).');
+          }
+        } catch (nativeErr) {
+          debugPrint('[AudioDownloaderService] Erro ao preparar native extractor ($nativeErr).');
+        }
+
+        if (!nativeSuccess) {
+          debugPrint('[AudioDownloaderService] Executando fallback YtExtractor + HTTP...');
+        }
+      }
+
+      // Fallback para HTTP stream caso o native extractor não esteja disponível ou falhe
+      debugPrint('[AudioDownloaderService] Usando fallback YtExtractor + HTTP...');
+
+      // Garante que não haja diretório residual no caminho antes de salvar via HTTP
+      if (FileSystemEntity.typeSync(file.path) == FileSystemEntityType.directory) {
+        await Directory(file.path).delete(recursive: true);
+      }
       final extractor = YtExtractor();
       final info = await extractor.getStreamInfo(musicUrl);
       final audioStream = info.bestAudioStream;
@@ -116,6 +300,15 @@ class AudioDownloaderService {
       }
 
       final request = http.Request('GET', Uri.parse(audioStream.url));
+      request.headers.addAll({
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Referer': 'https://music.youtube.com/',
+        'Origin': 'https://music.youtube.com',
+        'Accept': '*/*',
+        'Accept-Encoding': 'identity',
+        'Connection': 'keep-alive',
+      });
       final response = await _client.send(request);
 
       if (response.statusCode != 200) {
@@ -198,3 +391,5 @@ class AudioDownloaderService {
     );
   }
 }
+
+

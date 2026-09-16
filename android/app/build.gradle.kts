@@ -34,6 +34,13 @@ android {
         versionName = flutter.versionName
     }
 
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            keepDebugSymbols += "**/*.zip.so"
+        }
+    }
+
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
