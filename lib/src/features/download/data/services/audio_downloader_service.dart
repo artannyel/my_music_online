@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:yt_extractor/yt_extractor.dart';
@@ -12,6 +13,9 @@ import '../../domain/models/offline_track_model.dart';
 class AudioDownloaderService {
   final http.Client _client;
 
+  static const MethodChannel _mediaScannerChannel =
+      MethodChannel('com.arttecsoftware.my_music_online/media_scanner');
+
   AudioDownloaderService({http.Client? client}) : _client = client ?? http.Client();
 
   /// Sanitiza o nome de arquivos e pastas para remover caracteres inválidos do sistema de arquivos.
@@ -22,10 +26,27 @@ class AudioDownloaderService {
         .trim();
   }
 
-  /// Retorna o diretório base para gravação de arquivos de música.
+  /// Retorna o diretório base público para gravação de arquivos de música.
   Future<Directory> _getBaseDirectory({String? playlistName}) async {
-    final appDir = await getApplicationDocumentsDirectory();
-    final baseDir = Directory('${appDir.path}/Music/MyMusicOnline');
+    Directory baseDir;
+
+    if (!kIsWeb && Platform.isAndroid) {
+      // Tenta utilizar o diretório público de Música no armazenamento interno do Android
+      final publicMusicDir = Directory('/storage/emulated/0/Music/MyMusicOnline');
+      try {
+        if (!await publicMusicDir.exists()) {
+          await publicMusicDir.create(recursive: true);
+        }
+        baseDir = publicMusicDir;
+      } catch (e) {
+        debugPrint('[AudioDownloaderService] Aviso: Diretório público inacessível, usando armazenamento estendido: $e');
+        final extDir = await getExternalStorageDirectory();
+        baseDir = Directory('${extDir?.path ?? (await getApplicationDocumentsDirectory()).path}/Music/MyMusicOnline');
+      }
+    } else {
+      final appDir = await getApplicationDocumentsDirectory();
+      baseDir = Directory('${appDir.path}/Music/MyMusicOnline');
+    }
 
     if (playlistName != null && playlistName.trim().isNotEmpty) {
       final folderName = sanitizeName(playlistName);
@@ -40,6 +61,18 @@ class AudioDownloaderService {
         await downloadsDir.create(recursive: true);
       }
       return downloadsDir;
+    }
+  }
+
+  /// Notifica o MediaScanner do sistema Android para indexar o novo arquivo de música.
+  Future<void> scanMediaFile(String filePath) async {
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        await _mediaScannerChannel.invokeMethod('scanFile', {'path': filePath});
+        debugPrint('[AudioDownloaderService] MediaScanner notificado para: $filePath');
+      } catch (e) {
+        debugPrint('[AudioDownloaderService] Erro ao notificar MediaScanner: $e');
+      }
     }
   }
 
@@ -110,6 +143,9 @@ class AudioDownloaderService {
 
       await sink.flush();
       await sink.close();
+
+      // Notifica o MediaScanner do sistema Android
+      await scanMediaFile(file.path);
 
       currentTask = currentTask.copyWith(
         progress: 1.0,
