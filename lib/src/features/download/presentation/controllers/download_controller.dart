@@ -254,10 +254,20 @@ class DownloadController extends StateNotifier<DownloadState> {
     state = state.copyWith(activeDownloads: updatedMap);
     await _repository.saveActiveQueue(updatedMap);
 
-    for (final track in tracks) {
-      if (_cancelledTrackIds.contains(track.id)) continue;
-      await downloadTrack(track, playlistName: playlistTitle);
+    final queueToProcess = List<AudioTrackModel>.from(tracks);
+    const maxConcurrent = 2;
+
+    Future<void> worker() async {
+      while (queueToProcess.isNotEmpty) {
+        final track = queueToProcess.removeAt(0);
+        if (_cancelledTrackIds.contains(track.id)) continue;
+        await downloadTrack(track, playlistName: playlistTitle);
+      }
     }
+
+    final activeWorkerCount = queueToProcess.isEmpty ? 0 : (queueToProcess.length < maxConcurrent ? queueToProcess.length : maxConcurrent);
+    final workers = List.generate(activeWorkerCount, (_) => worker());
+    await Future.wait(workers);
   }
 
   /// Cancela o download ativo ou pendente de uma faixa.

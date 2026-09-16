@@ -53,4 +53,5 @@ lib/src/features/download/
 - [x] [Task 5: Integration - Notificações Nativas de Progresso de Download (Background & Cortina de Notificações)](./task-5-download-notifications.md)
 - [x] [Task 6: Resiliência - Persistência da Fila de Downloads & Retomada Automática (Auto-Resume)](./task-6-download-queue-persistence.md)
 - [x] [Task 7: Visibilidade Global - Armazenamento Público e Indexação no MediaScanner do Android](./task-7-public-storage-and-mediascanner.md)
+- [x] [Task 8: Otimização de Performance - High-Speed Downloads, Throttling de Progresso & Concorrência Paralela](./task-8-speed-and-concurrency-optimizations.md)
 

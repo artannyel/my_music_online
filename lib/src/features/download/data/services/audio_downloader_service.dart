@@ -124,6 +124,8 @@ class AudioDownloaderService {
 
       final totalBytes = response.contentLength ?? 0;
       var downloadedBytes = 0;
+      var lastYieldTimeMs = 0;
+      var lastYieldProgress = -1.0;
 
       final sink = file.openWrite();
 
@@ -132,13 +134,22 @@ class AudioDownloaderService {
         downloadedBytes += chunk.length;
         final progress = totalBytes > 0 ? (downloadedBytes / totalBytes).clamp(0.0, 1.0) : 0.0;
 
-        currentTask = currentTask.copyWith(
-          progress: progress,
-          downloadedBytes: downloadedBytes,
-          totalBytes: totalBytes,
-          filePath: file.path,
-        );
-        yield currentTask;
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final shouldYield = progress == 1.0 ||
+            (progress - lastYieldProgress).abs() >= 0.02 ||
+            (nowMs - lastYieldTimeMs) >= 250;
+
+        if (shouldYield) {
+          lastYieldProgress = progress;
+          lastYieldTimeMs = nowMs;
+          currentTask = currentTask.copyWith(
+            progress: progress,
+            downloadedBytes: downloadedBytes,
+            totalBytes: totalBytes,
+            filePath: file.path,
+          );
+          yield currentTask;
+        }
       }
 
       await sink.flush();
