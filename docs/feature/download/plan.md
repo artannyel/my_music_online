@@ -50,5 +50,5 @@ lib/src/features/download/
 - [x] [Task 2: Data - Serviço de Download (AudioDownloaderService com suporte a pastas e formato MP3/M4A) e Repositório Local](./task-2-download-service-and-repository.md)
 - [x] [Task 3: Presentation - Controller Riverpod (DownloadController & Providers)](./task-3-download-riverpod-controller.md)
 - [x] [Task 4: Presentation - UI de Downloads, Botões, Seletor de Formato e Tela de Músicas Off-line](./task-4-download-ui-and-offline-library.md)
-- [ ] [Task 5: Integration - Notificações Nativas de Progresso de Download (Background & Cortina de Notificações)](./task-5-download-notifications.md)
+- [x] [Task 5: Integration - Notificações Nativas de Progresso de Download (Background & Cortina de Notificações)](./task-5-download-notifications.md)
 

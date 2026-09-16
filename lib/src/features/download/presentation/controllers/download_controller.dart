@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../data/repositories/local_download_repository.dart';
 import '../../data/services/audio_downloader_service.dart';
+import '../../data/services/download_notification_service.dart';
 import '../../domain/models/download_task_model.dart';
 import '../../domain/models/offline_track_model.dart';
 import '../../domain/repositories/download_repository.dart';
@@ -16,6 +17,11 @@ final downloadRepositoryProvider = Provider<DownloadRepository>((ref) {
 /// Provider singleton para o serviço de download de áudio.
 final audioDownloaderServiceProvider = Provider<AudioDownloaderService>((ref) {
   return AudioDownloaderService();
+});
+
+/// Provider singleton para o serviço de notificações de download.
+final downloadNotificationServiceProvider = Provider<DownloadNotificationService>((ref) {
+  return DownloadNotificationService();
 });
 
 /// Estado imutável do módulo de downloads.
@@ -56,10 +62,14 @@ class DownloadState {
 class DownloadController extends StateNotifier<DownloadState> {
   final DownloadRepository _repository;
   final AudioDownloaderService _downloaderService;
+  final DownloadNotificationService _notificationService;
   final Set<String> _cancelledTrackIds = {};
 
-  DownloadController(this._repository, this._downloaderService)
-      : super(const DownloadState(isLoading: true)) {
+  DownloadController(
+    this._repository,
+    this._downloaderService,
+    this._notificationService,
+  ) : super(const DownloadState(isLoading: true)) {
     _init();
   }
 
@@ -94,6 +104,9 @@ class DownloadController extends StateNotifier<DownloadState> {
 
     _cancelledTrackIds.remove(track.id);
 
+    final notificationId = track.id.hashCode.abs();
+    int lastNotifiedPercent = -1;
+
     final initialTask = DownloadTaskModel(
       id: 'download_${track.id}_${DateTime.now().millisecondsSinceEpoch}',
       trackId: track.id,
@@ -110,6 +123,13 @@ class DownloadController extends StateNotifier<DownloadState> {
     initialMap[track.id] = initialTask;
     state = state.copyWith(activeDownloads: initialMap);
 
+    _notificationService.showDownloadProgress(
+      id: notificationId,
+      title: 'Baixando "${track.title}"',
+      body: playlistName != null ? 'Playlist: $playlistName • 0%' : 'Iniciando download... 0%',
+      progress: 0.0,
+    );
+
     final stream = _downloaderService.downloadTrack(
       track: track,
       playlistName: playlistName,
@@ -118,6 +138,7 @@ class DownloadController extends StateNotifier<DownloadState> {
 
     await for (final task in stream) {
       if (_cancelledTrackIds.contains(track.id)) {
+        await _notificationService.cancelNotification(notificationId);
         final updatedMap = Map<String, DownloadTaskModel>.from(state.activeDownloads);
         updatedMap.remove(track.id);
         state = state.copyWith(activeDownloads: updatedMap);
@@ -126,6 +147,20 @@ class DownloadController extends StateNotifier<DownloadState> {
 
       final updatedMap = Map<String, DownloadTaskModel>.from(state.activeDownloads);
       updatedMap[track.id] = task;
+
+      final currentPercent = (task.progress * 100).toInt();
+      if (currentPercent != lastNotifiedPercent && (currentPercent % 5 == 0 || currentPercent == 100)) {
+        lastNotifiedPercent = currentPercent;
+        final bodyText = playlistName != null
+            ? 'Playlist: $playlistName • $currentPercent%'
+            : 'Progresso: $currentPercent% • ${state.preferredFormat.name.toUpperCase()}';
+        await _notificationService.showDownloadProgress(
+          id: notificationId,
+          title: 'Baixando "${track.title}"',
+          body: bodyText,
+          progress: task.progress,
+        );
+      }
 
       if (task.status == DownloadStatus.completed) {
         updatedMap.remove(track.id);
@@ -142,6 +177,12 @@ class DownloadController extends StateNotifier<DownloadState> {
           activeDownloads: updatedMap,
           offlineTracks: updatedTracks,
           totalStorageBytes: updatedStorage,
+        );
+
+        await _notificationService.showDownloadCompleted(
+          id: notificationId,
+          title: '🟢 Download Concluído',
+          body: '"${track.title}" (${track.artistName}) foi salva off-line.',
         );
       } else {
         state = state.copyWith(activeDownloads: updatedMap);
@@ -182,6 +223,7 @@ class DownloadController extends StateNotifier<DownloadState> {
   /// Cancela o download ativo ou pendente de uma faixa.
   void cancelDownload(String trackId) {
     _cancelledTrackIds.add(trackId);
+    _notificationService.cancelNotification(trackId.hashCode.abs());
     final updatedMap = Map<String, DownloadTaskModel>.from(state.activeDownloads);
     updatedMap.remove(trackId);
     state = state.copyWith(activeDownloads: updatedMap);
@@ -190,6 +232,7 @@ class DownloadController extends StateNotifier<DownloadState> {
   /// Cancela todos os downloads ativos e pendentes da fila.
   void cancelAllActiveDownloads() {
     _cancelledTrackIds.addAll(state.activeDownloads.keys);
+    _notificationService.cancelAll();
     state = state.copyWith(activeDownloads: {});
   }
 
@@ -234,7 +277,8 @@ final downloadControllerProvider =
     StateNotifierProvider<DownloadController, DownloadState>((ref) {
   final repo = ref.watch(downloadRepositoryProvider);
   final service = ref.watch(audioDownloaderServiceProvider);
-  return DownloadController(repo, service);
+  final notificationService = ref.watch(downloadNotificationServiceProvider);
+  return DownloadController(repo, service, notificationService);
 });
 
 /// Seletor para verificar se uma faixa está baixada.
