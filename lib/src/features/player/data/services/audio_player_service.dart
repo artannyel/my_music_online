@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:yt_extractor/yt_extractor.dart';
@@ -31,6 +32,18 @@ class AudioPlayerService {
   /// Prepara o áudio carregando a URL sem iniciar a reprodução.
   Future<void> setTrack(AudioTrackModel track) async {
     debugPrint('[AudioPlayerService] --- setTrack: "${track.title}" (videoId: ${track.videoId}) ---');
+
+    // 1. Se a faixa possui um caminho local offline (audioUrl) e o arquivo existe, reproduz o arquivo local direto!
+    if (track.audioUrl != null && track.audioUrl!.isNotEmpty) {
+      final localFile = File(track.audioUrl!);
+      if (localFile.existsSync()) {
+        debugPrint('[AudioPlayerService] Reproduzindo arquivo offline local: ${localFile.path}');
+        await _audioPlayer.setFilePath(localFile.path);
+        return;
+      }
+    }
+
+    // 2. Caso contrário, faz a busca online de stream no YouTube
     final musicUrl = 'https://youtube.com/watch?v=${track.videoId}';
     final extractor = YtExtractor();
     try {

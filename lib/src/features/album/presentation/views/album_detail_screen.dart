@@ -9,8 +9,11 @@ import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
 import '../../../player/presentation/widgets/song_context_menu_bottom_sheet.dart';
+import '../../../download/presentation/controllers/download_controller.dart';
+import '../../../download/presentation/widgets/download_button_widget.dart';
 import '../../../playlist/domain/models/playlist_model.dart';
 import '../../../playlist/presentation/controllers/playlist_controller.dart';
+import '../../../../core/widgets/offline_fallback_widget.dart';
 import '../../domain/models/album_model.dart';
 import '../controllers/album_controller.dart';
 
@@ -207,10 +210,12 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                ref.read(playerControllerProvider.notifier).playQueue(album.tracks, initialIndex: 0);
-                                FullPlayerScreen.show(context);
-                              },
+                              onPressed: album.tracks.isEmpty
+                                  ? null
+                                  : () {
+                                      ref.read(playerControllerProvider.notifier).playQueue(album.tracks, initialIndex: 0);
+                                      FullPlayerScreen.show(context);
+                                    },
                               icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 26),
                               label: const Text('Tocar Tudo', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
@@ -222,11 +227,37 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                           ),
                           const SizedBox(width: 12),
                           OutlinedButton(
-                            onPressed: () {
-                              final shuffledTracks = List<AudioTrackModel>.from(album.tracks)..shuffle();
-                              ref.read(playerControllerProvider.notifier).playQueue(shuffledTracks, initialIndex: 0);
-                              FullPlayerScreen.show(context);
-                            },
+                            onPressed: album.tracks.isEmpty
+                                ? null
+                                : () {
+                                    ref.read(downloadControllerProvider.notifier).downloadPlaylist(album.tracks, album.title);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Iniciando download do álbum "${album.title}" em subpasta...',
+                                          style: const TextStyle(color: AppColors.textPrimary),
+                                        ),
+                                        backgroundColor: AppColors.surface,
+                                        duration: const Duration(seconds: 3),
+                                      ),
+                                    );
+                                  },
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.divider),
+                              padding: const EdgeInsets.all(14),
+                              shape: const CircleBorder(),
+                            ),
+                            child: const Icon(Icons.download_for_offline_rounded, color: AppColors.textPrimary, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton(
+                            onPressed: album.tracks.isEmpty
+                                ? null
+                                : () {
+                                    final shuffledTracks = List<AudioTrackModel>.from(album.tracks)..shuffle();
+                                    ref.read(playerControllerProvider.notifier).playQueue(shuffledTracks, initialIndex: 0);
+                                    FullPlayerScreen.show(context);
+                                  },
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(color: AppColors.divider),
                               padding: const EdgeInsets.all(14),
@@ -284,6 +315,12 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
                             _formatTrackDuration(track.duration),
                             style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                           ),
+                          const SizedBox(width: 4),
+                          DownloadButtonWidget(
+                            track: track,
+                            playlistName: album.title,
+                            iconSize: 20.0,
+                          ),
                           IconButton(
                             icon: const Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
                             onPressed: () => showSongContextMenuBottomSheet(context, ref, track: track),
@@ -313,11 +350,9 @@ class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen> {
             child: CircularProgressIndicator(color: AppColors.primary),
           ),
         ),
-        error: (err, stack) => Scaffold(
-          appBar: AppBar(backgroundColor: AppColors.surface),
-          body: const Center(
-            child: Text('Erro ao carregar detalhes do álbum.', style: TextStyle(color: AppColors.error)),
-          ),
+        error: (err, stack) => OfflineFallbackWidget(
+          showAppBar: true,
+          onRetry: () => ref.invalidate(albumDetailProvider(widget.albumId)),
         ),
       ),
     );

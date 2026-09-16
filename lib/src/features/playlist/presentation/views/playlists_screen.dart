@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/offline_fallback_widget.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../domain/models/playlist_model.dart';
 import '../controllers/playlist_controller.dart';
@@ -274,11 +275,8 @@ class PlaylistsScreen extends ConsumerWidget {
       loading: () => const Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       ),
-      error: (err, stack) => const Center(
-        child: Text(
-          'Erro ao carregar playlists.',
-          style: TextStyle(color: AppColors.error),
-        ),
+      error: (err, stack) => OfflineFallbackWidget(
+        onRetry: () => ref.invalidate(userPlaylistsStreamProvider(userId)),
       ),
     );
   }

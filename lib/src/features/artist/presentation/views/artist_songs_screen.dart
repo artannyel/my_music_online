@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../controllers/artist_controller.dart';
 import '../../../../features/player/presentation/controllers/player_controller.dart';
 import '../../../../features/player/presentation/views/full_player_screen.dart';
+import '../../../../core/widgets/offline_fallback_widget.dart';
 import '../../../../features/player/presentation/widgets/song_context_menu_bottom_sheet.dart';
 
 class ArtistSongsScreen extends ConsumerWidget {
@@ -78,7 +79,9 @@ class ArtistSongsScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (err, st) => Center(child: Text('Erro: $err', style: const TextStyle(color: AppColors.textSecondary))),
+        error: (err, st) => OfflineFallbackWidget(
+          onRetry: () => ref.invalidate(artistSongsProvider(artistId)),
+        ),
       ),
     );
   }

@@ -8,6 +8,7 @@ import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
 import '../../../player/presentation/widgets/song_context_menu_bottom_sheet.dart';
+import '../../../../core/widgets/offline_fallback_widget.dart';
 import '../../domain/models/home_section_model.dart';
 import '../controllers/home_controller.dart';
 
@@ -212,6 +213,14 @@ class HomeScreen extends ConsumerWidget {
               // Conteúdo Dinâmico
               homeState.when(
                 data: (sections) {
+                  if (sections.isEmpty) {
+                    return SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: OfflineFallbackWidget(
+                        onRetry: () => ref.invalidate(homeSectionsProvider),
+                      ),
+                    );
+                  }
                   return SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
@@ -230,13 +239,10 @@ class HomeScreen extends ConsumerWidget {
                     child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                 ),
-                error: (error, stack) => const SliverFillRemaining(
-                  child: Center(
-                    child: Text(
-                      'Erro ao carregar seções.\nPuxe para atualizar.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
+                error: (error, stack) => SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: OfflineFallbackWidget(
+                    onRetry: () => ref.invalidate(homeSectionsProvider),
                   ),
                 ),
               ),

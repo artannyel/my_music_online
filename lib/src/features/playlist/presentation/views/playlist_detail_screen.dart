@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../download/presentation/controllers/download_controller.dart';
+import '../../../download/presentation/widgets/download_button_widget.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
 import '../../../player/presentation/widgets/song_context_menu_bottom_sheet.dart';
+import '../../../../core/widgets/offline_fallback_widget.dart';
 import '../../domain/models/playlist_model.dart';
 import '../controllers/playlist_controller.dart';
 
@@ -118,14 +121,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       body: playlistAsync.when(
         data: (playlist) {
           if (playlist == null) {
-            return Scaffold(
-              appBar: AppBar(),
-              body: const Center(
-                child: Text(
-                  'Playlist não encontrada ou indisponível.',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              ),
+            return OfflineFallbackWidget(
+              showAppBar: true,
+              onRetry: () => ref.invalidate(playlistDetailsProvider((id: widget.playlistId, url: widget.url))),
             );
           }
 
@@ -396,6 +394,31 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                 ? null
                                 : () {
                                     final queue = _mapTracksToAudioQueue(playlist.tracks);
+                                    ref.read(downloadControllerProvider.notifier).downloadPlaylist(queue, playlist.title);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Iniciando download de "${playlist.title}" em subpasta...',
+                                          style: const TextStyle(color: AppColors.textPrimary),
+                                        ),
+                                        backgroundColor: AppColors.surface,
+                                        duration: const Duration(seconds: 3),
+                                      ),
+                                    );
+                                  },
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.divider),
+                              padding: const EdgeInsets.all(14),
+                              shape: const CircleBorder(),
+                            ),
+                            child: const Icon(Icons.download_for_offline_rounded, color: AppColors.textPrimary, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton(
+                            onPressed: playlist.tracks.isEmpty
+                                ? null
+                                : () {
+                                    final queue = _mapTracksToAudioQueue(playlist.tracks);
                                     final shuffledTracks = List<AudioTrackModel>.from(queue)..shuffle();
                                     ref.read(playerControllerProvider.notifier).playQueue(
                                       shuffledTracks, 
@@ -536,6 +559,19 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                         padding: EdgeInsets.only(right: 4),
                                         child: Icon(Icons.volume_up_rounded, color: AppColors.primary, size: 18),
                                       ),
+                                    DownloadButtonWidget(
+                                      track: AudioTrackModel(
+                                        id: track.id,
+                                        videoId: track.videoId ?? track.id,
+                                        title: track.title,
+                                        artistName: track.artistName,
+                                        albumName: track.albumName,
+                                        thumbnailUrl: track.thumbnailUrl,
+                                        duration: track.duration,
+                                      ),
+                                      playlistName: playlist.title,
+                                      iconSize: 20.0,
+                                    ),
                                     IconButton(
                                       icon: const Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
                                       onPressed: () => showSongContextMenuBottomSheet(
@@ -664,6 +700,19 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                       padding: EdgeInsets.only(right: 6.0),
                                       child: Icon(Icons.volume_up_rounded, color: AppColors.primary, size: 22),
                                     ),
+                                  DownloadButtonWidget(
+                                    track: AudioTrackModel(
+                                      id: track.id,
+                                      videoId: track.videoId ?? track.id,
+                                      title: track.title,
+                                      artistName: track.artistName,
+                                      albumName: track.albumName,
+                                      thumbnailUrl: track.thumbnailUrl,
+                                      duration: track.duration,
+                                    ),
+                                    playlistName: playlist.title,
+                                    iconSize: 20.0,
+                                  ),
                                   if (isOwner)
                                     IconButton(
                                       icon: const Icon(Icons.close, color: AppColors.textMuted, size: 20),
@@ -745,11 +794,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
             child: CircularProgressIndicator(color: AppColors.primary),
           ),
         ),
-        error: (err, stack) => Scaffold(
-          appBar: AppBar(),
-          body: const Center(
-            child: Text('Erro ao carregar detalhes da playlist.', style: TextStyle(color: AppColors.error)),
-          ),
+        error: (err, stack) => OfflineFallbackWidget(
+          showAppBar: true,
+          onRetry: () => ref.invalidate(playlistDetailsProvider((id: widget.playlistId, url: widget.url))),
         ),
       ),
     );
