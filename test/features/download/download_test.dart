@@ -89,6 +89,28 @@ void main() {
       await repo.setPreferredAudioFormat(AudioFormat.mp3);
       expect(await repo.getPreferredAudioFormat(), AudioFormat.mp3);
     });
+
+    test('saveActiveQueue e getActiveQueue persistem fila em andamento', () async {
+      final repo = LocalDownloadRepository();
+      expect(await repo.getActiveQueue(), isEmpty);
+
+      final task = DownloadTaskModel(
+        id: 'task_queue_1',
+        trackId: 'track_queue_1',
+        title: 'Queue Song',
+        artistName: 'Queue Artist',
+        status: DownloadStatus.pending,
+      );
+
+      await repo.saveActiveQueue({'track_queue_1': task});
+      final loadedQueue = await repo.getActiveQueue();
+
+      expect(loadedQueue.length, 1);
+      expect(loadedQueue['track_queue_1']?.title, 'Queue Song');
+
+      await repo.saveActiveQueue({});
+      expect(await repo.getActiveQueue(), isEmpty);
+    });
   });
 
   group('DownloadController Tests', () {

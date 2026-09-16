@@ -32,4 +32,10 @@ abstract class DownloadRepository {
 
   /// Define a preferência de formato de áudio para futuros downloads.
   Future<void> setPreferredAudioFormat(AudioFormat format);
+
+  /// Salva a fila de downloads ativos/pendentes em disco para resumabilidade.
+  Future<void> saveActiveQueue(Map<String, DownloadTaskModel> activeDownloads);
+
+  /// Retorna a fila de downloads ativos/pendentes salva em disco.
+  Future<Map<String, DownloadTaskModel>> getActiveQueue();
 }

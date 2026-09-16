@@ -51,4 +51,5 @@ lib/src/features/download/
 - [x] [Task 3: Presentation - Controller Riverpod (DownloadController & Providers)](./task-3-download-riverpod-controller.md)
 - [x] [Task 4: Presentation - UI de Downloads, Botões, Seletor de Formato e Tela de Músicas Off-line](./task-4-download-ui-and-offline-library.md)
 - [x] [Task 5: Integration - Notificações Nativas de Progresso de Download (Background & Cortina de Notificações)](./task-5-download-notifications.md)
+- [x] [Task 6: Resiliência - Persistência da Fila de Downloads & Retomada Automática (Auto-Resume)](./task-6-download-queue-persistence.md)
 

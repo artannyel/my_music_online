@@ -8,6 +8,7 @@ import '../../domain/repositories/download_repository.dart';
 
 const String _prefsOfflineTracksKey = 'offline_tracks_index';
 const String _prefsPreferredFormatKey = 'preferred_audio_format';
+const String _prefsActiveQueueKey = 'active_download_queue';
 
 /// Repositório local responsável por indexar as músicas baixadas e preferências de formato no SharedPreferences.
 class LocalDownloadRepository implements DownloadRepository {
@@ -170,6 +171,43 @@ class LocalDownloadRepository implements DownloadRepository {
       await prefs.setString(_prefsPreferredFormatKey, format.name);
     } catch (e) {
       debugPrint('[LocalDownloadRepository] Erro ao definir preferência de formato: $e');
+    }
+  }
+
+  @override
+  Future<void> saveActiveQueue(Map<String, DownloadTaskModel> activeDownloads) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (activeDownloads.isEmpty) {
+        await prefs.remove(_prefsActiveQueueKey);
+        return;
+      }
+      final jsonList = activeDownloads.values.map((t) => t.toJson()).toList();
+      await prefs.setString(_prefsActiveQueueKey, json.encode(jsonList));
+    } catch (e) {
+      debugPrint('[LocalDownloadRepository] Erro ao salvar fila ativa: $e');
+    }
+  }
+
+  @override
+  Future<Map<String, DownloadTaskModel>> getActiveQueue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = prefs.getString(_prefsActiveQueueKey);
+      if (jsonString == null || jsonString.isEmpty) return {};
+
+      final decoded = json.decode(jsonString) as List<dynamic>;
+      final map = <String, DownloadTaskModel>{};
+
+      for (final item in decoded) {
+        final task = DownloadTaskModel.fromJson(item as Map<String, dynamic>);
+        map[task.trackId] = task;
+      }
+
+      return map;
+    } catch (e) {
+      debugPrint('[LocalDownloadRepository] Erro ao obter fila ativa: $e');
+      return {};
     }
   }
 

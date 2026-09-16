@@ -78,16 +78,51 @@ class DownloadController extends StateNotifier<DownloadState> {
       final offlineTracks = await _repository.getOfflineTracks();
       final totalBytes = await _repository.getTotalStorageUsedBytes();
       final format = await _repository.getPreferredAudioFormat();
+      final savedQueue = await _repository.getActiveQueue();
+
+      final restoredQueue = <String, DownloadTaskModel>{};
+      for (final entry in savedQueue.entries) {
+        final trackId = entry.key;
+        final task = entry.value;
+        // Se a faixa não foi concluída no armazenamento, restaura na fila como pendente
+        if (!offlineTracks.any((t) => t.id == trackId || t.videoId == trackId)) {
+          restoredQueue[trackId] = task.copyWith(
+            status: DownloadStatus.pending,
+            progress: 0.0,
+          );
+        }
+      }
 
       state = DownloadState(
         offlineTracks: offlineTracks,
         totalStorageBytes: totalBytes,
         preferredFormat: format,
+        activeDownloads: restoredQueue,
         isLoading: false,
       );
+
+      if (restoredQueue.isNotEmpty) {
+        _resumePendingDownloads();
+      }
     } catch (e) {
       debugPrint('[DownloadController] Erro na inicialização: $e');
       state = state.copyWith(isLoading: false);
+    }
+  }
+
+  /// Retoma o download de faixas salvas na fila pendente ao reabrir o app.
+  Future<void> _resumePendingDownloads() async {
+    final pendingTasks = state.activeDownloads.values.toList();
+    for (final task in pendingTasks) {
+      if (_cancelledTrackIds.contains(task.trackId)) continue;
+      final trackModel = AudioTrackModel(
+        id: task.trackId,
+        videoId: task.trackId,
+        title: task.title,
+        artistName: task.artistName,
+        thumbnailUrl: task.thumbnailUrl,
+      );
+      await downloadTrack(trackModel, playlistName: task.playlistName);
     }
   }
 
@@ -122,6 +157,7 @@ class DownloadController extends StateNotifier<DownloadState> {
     final initialMap = Map<String, DownloadTaskModel>.from(state.activeDownloads);
     initialMap[track.id] = initialTask;
     state = state.copyWith(activeDownloads: initialMap);
+    await _repository.saveActiveQueue(initialMap);
 
     _notificationService.showDownloadProgress(
       id: notificationId,
@@ -142,6 +178,7 @@ class DownloadController extends StateNotifier<DownloadState> {
         final updatedMap = Map<String, DownloadTaskModel>.from(state.activeDownloads);
         updatedMap.remove(track.id);
         state = state.copyWith(activeDownloads: updatedMap);
+        await _repository.saveActiveQueue(updatedMap);
         break;
       }
 
@@ -178,6 +215,7 @@ class DownloadController extends StateNotifier<DownloadState> {
           offlineTracks: updatedTracks,
           totalStorageBytes: updatedStorage,
         );
+        await _repository.saveActiveQueue(updatedMap);
 
         await _notificationService.showDownloadCompleted(
           id: notificationId,
@@ -186,6 +224,7 @@ class DownloadController extends StateNotifier<DownloadState> {
         );
       } else {
         state = state.copyWith(activeDownloads: updatedMap);
+        await _repository.saveActiveQueue(updatedMap);
       }
     }
   }
@@ -213,6 +252,7 @@ class DownloadController extends StateNotifier<DownloadState> {
     }
 
     state = state.copyWith(activeDownloads: updatedMap);
+    await _repository.saveActiveQueue(updatedMap);
 
     for (final track in tracks) {
       if (_cancelledTrackIds.contains(track.id)) continue;
@@ -227,6 +267,7 @@ class DownloadController extends StateNotifier<DownloadState> {
     final updatedMap = Map<String, DownloadTaskModel>.from(state.activeDownloads);
     updatedMap.remove(trackId);
     state = state.copyWith(activeDownloads: updatedMap);
+    _repository.saveActiveQueue(updatedMap);
   }
 
   /// Cancela todos os downloads ativos e pendentes da fila.
@@ -234,6 +275,7 @@ class DownloadController extends StateNotifier<DownloadState> {
     _cancelledTrackIds.addAll(state.activeDownloads.keys);
     _notificationService.cancelAll();
     state = state.copyWith(activeDownloads: {});
+    _repository.saveActiveQueue({});
   }
 
   /// Exclui uma faixa baixada do armazenamento.
