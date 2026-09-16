@@ -31,7 +31,10 @@ class DownloadButtonWidget extends ConsumerWidget {
         onPressed: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Esta faixa já está salva no seu dispositivo.'),
+              content: Text(
+                'Esta faixa já está salva no seu dispositivo.',
+                style: TextStyle(color: AppColors.textPrimary),
+              ),
               backgroundColor: AppColors.surface,
               duration: Duration(seconds: 2),
             ),
@@ -49,7 +52,10 @@ class DownloadButtonWidget extends ConsumerWidget {
             ref.read(downloadControllerProvider.notifier).cancelDownload(track.id);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Download da faixa cancelado.'),
+                content: Text(
+                  'Download da faixa cancelado.',
+                  style: TextStyle(color: AppColors.textPrimary),
+                ),
                 backgroundColor: AppColors.surface,
                 duration: Duration(seconds: 2),
               ),
@@ -70,7 +76,10 @@ class DownloadButtonWidget extends ConsumerWidget {
               ref.read(downloadControllerProvider.notifier).cancelDownload(track.id);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Download da faixa cancelado.'),
+                  content: Text(
+                    'Download da faixa cancelado.',
+                    style: TextStyle(color: AppColors.textPrimary),
+                  ),
                   backgroundColor: AppColors.surface,
                   duration: Duration(seconds: 2),
                 ),
@@ -117,7 +126,10 @@ class DownloadButtonWidget extends ConsumerWidget {
             );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Iniciando download de "${track.title}"...'),
+            content: Text(
+              'Iniciando download de "${track.title}"...',
+              style: const TextStyle(color: AppColors.textPrimary),
+            ),
             backgroundColor: AppColors.surface,
             duration: const Duration(seconds: 2),
           ),

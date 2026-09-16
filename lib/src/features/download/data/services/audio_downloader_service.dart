@@ -184,8 +184,9 @@ class AudioDownloaderService {
             outputPath: tempDir.path,
             outputTemplate: '$sanitizedTitle - $sanitizedArtist.${format.extension}',
             format: 'bestaudio[ext=m4a]/bestaudio/best',
-            embedThumbnail: false,
-            embedMetadata: false,
+            embedThumbnail: true,
+            embedMetadata: true,
+            embedSubtitles: true,
             processId: taskId,
             customOptions: {
               '--extractor-args': 'youtube:player_client=android,web',

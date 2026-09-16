@@ -214,7 +214,10 @@ class _SongContextMenuContent extends ConsumerWidget {
                         ref.read(downloadControllerProvider.notifier).deleteOfflineTrack(track.id);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Música removida dos downloads.'),
+                            content: Text(
+                              'Música removida dos downloads.',
+                              style: TextStyle(color: AppColors.textPrimary),
+                            ),
                             backgroundColor: AppColors.surface,
                           ),
                         );
@@ -234,7 +237,10 @@ class _SongContextMenuContent extends ConsumerWidget {
                         ref.read(downloadControllerProvider.notifier).cancelDownload(track.id);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Download cancelado.'),
+                            content: Text(
+                              'Download cancelado.',
+                              style: TextStyle(color: AppColors.textPrimary),
+                            ),
                             backgroundColor: AppColors.surface,
                           ),
                         );
@@ -250,7 +256,10 @@ class _SongContextMenuContent extends ConsumerWidget {
                         ref.read(downloadControllerProvider.notifier).downloadTrack(track);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Iniciando download de "${track.title}"...'),
+                            content: Text(
+                              'Iniciando download de "${track.title}"...',
+                              style: const TextStyle(color: AppColors.textPrimary),
+                            ),
                             backgroundColor: AppColors.surface,
                           ),
                         );

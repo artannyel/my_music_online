@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
 import '../../domain/models/download_task_model.dart';
@@ -56,7 +58,13 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(RouteNames.home);
+            }
+          },
         ),
         title: const Text(
           'Downloads & Off-line',
@@ -122,20 +130,27 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.sd_storage_rounded, color: AppColors.primary, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Espaço Ocupado: ${_formatBytes(downloadState.totalStorageBytes)}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.sd_storage_rounded, color: AppColors.primary, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Espaço Ocupado: ${_formatBytes(downloadState.totalStorageBytes)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         'Formato: ${downloadState.preferredFormat.name.toUpperCase()}',
                         style: const TextStyle(
@@ -201,27 +216,34 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primary,
+              Expanded(
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Downloads em Andamento (${activeTasks.length})',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Downloads em Andamento (${activeTasks.length})',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               TextButton.icon(
                 onPressed: () => downloadNotifier.cancelAllActiveDownloads(),
                 icon: const Icon(Icons.close, color: AppColors.error, size: 16),
@@ -289,11 +311,18 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
                               color: isDownloading ? AppColors.primary : AppColors.textSecondary,
                             ),
                           ),
-                          if (task.playlistName != null)
-                            Text(
-                              task.playlistName!,
-                              style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                          if (task.playlistName != null) ...[
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                task.playlistName!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.end,
+                                style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                              ),
                             ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -353,6 +382,7 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            onTap: () => _showOfflinePlaylistDetailSheet(context, playlistName),
             leading: Container(
               width: 48,
               height: 48,
@@ -396,6 +426,15 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
           ),
         );
       },
+    );
+  }
+
+  void _showOfflinePlaylistDetailSheet(BuildContext context, String playlistName) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _OfflinePlaylistDetailSheet(playlistName: playlistName),
     );
   }
 
@@ -498,4 +537,276 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
       ],
     );
   }
+}
+
+/// Modal Bottom Sheet que exibe a lista completa de faixas contidas em uma playlist/álbum off-line.
+class _OfflinePlaylistDetailSheet extends ConsumerWidget {
+  final String playlistName;
+
+  const _OfflinePlaylistDetailSheet({required this.playlistName});
+
+  String _formatTrackDuration(Duration? duration) {
+    if (duration == null) return '--:--';
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes <= 0) return '0 MB';
+    final mb = bytes / (1024 * 1024);
+    if (mb >= 1000) {
+      final gb = mb / 1024;
+      return '${gb.toStringAsFixed(2)} GB';
+    }
+    return '${mb.toStringAsFixed(1)} MB';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final offlinePlaylists = ref.watch(offlinePlaylistsProvider);
+    final tracks = offlinePlaylists[playlistName] ?? [];
+    final playerState = ref.watch(playerControllerProvider);
+    final downloadNotifier = ref.read(downloadControllerProvider.notifier);
+
+    final totalFolderBytes = tracks.fold<int>(0, (sum, t) => sum + t.fileSizeBytes);
+
+    return Material(
+      color: AppColors.surface,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.82,
+        child: SafeArea(
+          top: false,
+          child: Column(
+          children: [
+            // Barra de arraste superior
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Cabeçalho da Playlist Off-line
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                    ),
+                    child: const Icon(Icons.folder_special_rounded, color: AppColors.primary, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          playlistName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${tracks.length} músicas • ${_formatBytes(totalFolderBytes)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: AppColors.textMuted),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Botões de Ação: Tocar Tudo / Aleatório / Excluir Pasta
+            if (tracks.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          final queue = tracks.map((t) => t.toAudioTrack()).toList();
+                          ref.read(playerControllerProvider.notifier).playQueue(queue, initialIndex: 0);
+                          Navigator.pop(context);
+                          FullPlayerScreen.show(context);
+                        },
+                        icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
+                        label: const Text(
+                          'Tocar Tudo',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    OutlinedButton(
+                      onPressed: () {
+                        final queue = tracks.map((t) => t.toAudioTrack()).toList();
+                        final shuffled = List<AudioTrackModel>.from(queue)..shuffle();
+                        ref.read(playerControllerProvider.notifier).playQueue(shuffled, initialIndex: 0);
+                        Navigator.pop(context);
+                        FullPlayerScreen.show(context);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.divider),
+                        padding: const EdgeInsets.all(12),
+                        shape: const CircleBorder(),
+                      ),
+                      child: const Icon(Icons.shuffle_rounded, color: AppColors.textPrimary, size: 20),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 22),
+                      tooltip: 'Excluir pasta',
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (dialogCtx) => AlertDialog(
+                            backgroundColor: AppColors.surface,
+                            title: const Text('Excluir pasta?', style: TextStyle(color: AppColors.textPrimary)),
+                            content: Text(
+                              'Deseja remover todas as ${tracks.length} músicas de "$playlistName"?',
+                              style: const TextStyle(color: AppColors.textSecondary),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogCtx),
+                                child: const Text('Cancelar', style: TextStyle(color: AppColors.textSecondary)),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(dialogCtx);
+                                  downloadNotifier.deleteOfflinePlaylist(playlistName);
+                                  Navigator.pop(context);
+                                },
+                                child: const Text('Excluir', style: TextStyle(color: AppColors.error)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 12),
+            const Divider(color: AppColors.divider, height: 1),
+
+            // Lista de Músicas da Playlist
+            Expanded(
+              child: tracks.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Nenhuma faixa restante nesta pasta.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: tracks.length,
+                      separatorBuilder: (_, index) => const Divider(color: AppColors.divider, height: 1),
+                      itemBuilder: (context, index) {
+                        final track = tracks[index];
+                        final isPlaying = playerState.currentTrack?.videoId == track.videoId;
+
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          leading: SizedBox(
+                            width: 32,
+                            child: Center(
+                              child: isPlaying
+                                  ? const Icon(Icons.volume_up_rounded, color: AppColors.primary, size: 20)
+                                  : Text(
+                                      '${index + 1}'.padLeft(2, '0'),
+                                      style: const TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          title: Text(
+                            track.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: isPlaying ? FontWeight.bold : FontWeight.w600,
+                              color: isPlaying ? AppColors.primary : AppColors.textPrimary,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${track.artistName} • ${track.audioFormat.name.toUpperCase()} • ${_formatBytes(track.fileSizeBytes)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _formatTrackDuration(track.duration),
+                                style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.textMuted),
+                                tooltip: 'Remover dos downloads',
+                                onPressed: () {
+                                  downloadNotifier.deleteOfflineTrack(track.id);
+                                },
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            final queue = tracks.map((t) => t.toAudioTrack()).toList();
+                            ref.read(playerControllerProvider.notifier).playQueue(queue, initialIndex: index);
+                            Navigator.pop(context);
+                            FullPlayerScreen.show(context);
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
 }

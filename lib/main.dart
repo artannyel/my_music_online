@@ -15,13 +15,21 @@ final extractor = YtExtractor();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await extractor.init();
+  try {
+    await extractor.init();
+  } catch (e) {
+    debugPrint('[main] YtExtractor init offline notice: $e');
+  }
   
   // Inicialização assíncrona do Firebase
   await FirebaseService.initialize();
 
   // Carrega cookies do Firestore e inicializa YTMusic + CookieExtractor
-  await initializeLibrariesWithCookies();
+  try {
+    await initializeLibrariesWithCookies();
+  } catch (e) {
+    debugPrint('[main] initializeLibrariesWithCookies offline notice: $e');
+  }
 
   final audioService = AudioPlayerService();
 

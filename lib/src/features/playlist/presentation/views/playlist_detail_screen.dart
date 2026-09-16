@@ -10,6 +10,7 @@ import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
 import '../../../player/presentation/widgets/song_context_menu_bottom_sheet.dart';
+import '../../../../core/widgets/offline_fallback_widget.dart';
 import '../../domain/models/playlist_model.dart';
 import '../controllers/playlist_controller.dart';
 
@@ -120,14 +121,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       body: playlistAsync.when(
         data: (playlist) {
           if (playlist == null) {
-            return Scaffold(
-              appBar: AppBar(),
-              body: const Center(
-                child: Text(
-                  'Playlist não encontrada ou indisponível.',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              ),
+            return OfflineFallbackWidget(
+              showAppBar: true,
+              onRetry: () => ref.invalidate(playlistDetailsProvider((id: widget.playlistId, url: widget.url))),
             );
           }
 
@@ -401,7 +397,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                     ref.read(downloadControllerProvider.notifier).downloadPlaylist(queue, playlist.title);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text('Iniciando download de "${playlist.title}" em subpasta...'),
+                                        content: Text(
+                                          'Iniciando download de "${playlist.title}" em subpasta...',
+                                          style: const TextStyle(color: AppColors.textPrimary),
+                                        ),
                                         backgroundColor: AppColors.surface,
                                         duration: const Duration(seconds: 3),
                                       ),
@@ -795,11 +794,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
             child: CircularProgressIndicator(color: AppColors.primary),
           ),
         ),
-        error: (err, stack) => Scaffold(
-          appBar: AppBar(),
-          body: const Center(
-            child: Text('Erro ao carregar detalhes da playlist.', style: TextStyle(color: AppColors.error)),
-          ),
+        error: (err, stack) => OfflineFallbackWidget(
+          showAppBar: true,
+          onRetry: () => ref.invalidate(playlistDetailsProvider((id: widget.playlistId, url: widget.url))),
         ),
       ),
     );

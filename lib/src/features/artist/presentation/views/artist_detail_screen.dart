@@ -7,6 +7,7 @@ import '../controllers/artist_controller.dart';
 import '../../../../features/player/presentation/controllers/player_controller.dart';
 import '../../../../features/player/domain/models/player_state_model.dart';
 import '../../../../features/player/presentation/views/full_player_screen.dart';
+import '../../../../core/widgets/offline_fallback_widget.dart';
 import '../../../../features/player/presentation/widgets/song_context_menu_bottom_sheet.dart';
 
 class ArtistDetailScreen extends ConsumerStatefulWidget {
@@ -315,15 +316,9 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
   }
 
   Widget _buildErrorState(String message) {
-    return Scaffold(
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: Text(
-          message,
-          style: const TextStyle(color: AppColors.textSecondary),
-        ),
-      ),
+    return OfflineFallbackWidget(
+      showAppBar: true,
+      onRetry: () => ref.read(artistDetailsProvider.notifier).fetchArtist(widget.artistId),
     );
   }
 
@@ -422,7 +417,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        separatorBuilder: (_, _) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final item = items[index];
           return GestureDetector(
@@ -472,7 +467,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        separatorBuilder: (_, _) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final item = items[index];
           return GestureDetector(
@@ -515,7 +510,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        separatorBuilder: (_, _) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final artist = items[index];
           return GestureDetector(

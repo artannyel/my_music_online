@@ -7,6 +7,7 @@ import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
 import '../../../player/presentation/widgets/song_context_menu_bottom_sheet.dart';
+import '../../../../core/widgets/offline_fallback_widget.dart';
 import '../../domain/models/search_result_model.dart';
 import '../controllers/search_controller.dart';
 
@@ -172,9 +173,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         loading: () => const Center(
                           child: CircularProgressIndicator(color: AppColors.primary),
                         ),
-                        error: (err, stack) => const Center(
-                          child: Text('Erro ao carregar sugestões.',
-                              style: TextStyle(color: AppColors.error)),
+                        error: (err, stack) => OfflineFallbackWidget(
+                          onRetry: () => ref.invalidate(searchSuggestionsProvider),
                         ),
                       )
                     // Visão 2: Resultados da Busca Completa (Cards)
@@ -207,9 +207,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         loading: () => const Center(
                           child: CircularProgressIndicator(color: AppColors.primary),
                         ),
-                        error: (err, stack) => const Center(
-                          child: Text('Erro ao buscar resultados.',
-                              style: TextStyle(color: AppColors.error)),
+                        error: (err, stack) => OfflineFallbackWidget(
+                          onRetry: () => ref.read(searchResultsProvider.notifier).loadMore(),
                         ),
                       ),
           ),

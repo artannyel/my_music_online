@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/offline_fallback_widget.dart';
 import '../controllers/artist_controller.dart';
 import '../../../../features/album/domain/models/album_model.dart';
 
@@ -44,6 +45,12 @@ class ArtistAlbumsScreen extends ConsumerWidget {
         children: [
           if (displayData.isEmpty && asyncData.isLoading)
             const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          else if (displayData.isEmpty && asyncData.hasError)
+            OfflineFallbackWidget(
+              onRetry: () => ref.invalidate(
+                type == 'albums' ? artistAlbumsProvider(artistId) : artistSinglesProvider(artistId),
+              ),
+            )
           else if (displayData.isEmpty)
             const Center(child: Text('Nenhum item encontrado.', style: TextStyle(color: AppColors.textSecondary)))
           else
@@ -53,7 +60,7 @@ class ArtistAlbumsScreen extends ConsumerWidget {
                 crossAxisCount: 2,
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 24,
-                childAspectRatio: 0.75, // Ajuste para capa + textos
+                childAspectRatio: 0.68, // Proporção ajustada para capa (1:1) + título 2 linhas + ano/artista
               ),
               itemCount: displayData.length,
               itemBuilder: (context, index) {
