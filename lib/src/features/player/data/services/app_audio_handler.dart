@@ -68,7 +68,12 @@ class AppAudioHandler extends BaseAudioHandler with SeekHandler {
   // Atualiza os dados da música atual para aparecer na tela de bloqueio
   @override
   Future<void> updateMediaItem(MediaItem mediaItem) async {
-    this.mediaItem.add(mediaItem);
+    try {
+      this.mediaItem.add(mediaItem);
+    } catch (e) {
+      // ignore: avoid_print
+      print('[AppAudioHandler] Erro ao adicionar mediaItem: $e');
+    }
   }
 
   @override

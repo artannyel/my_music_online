@@ -42,13 +42,19 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
   }
 
   void _updateNotification(AudioTrackModel track) {
-    _audioHandler.updateMediaItem(MediaItem(
-      id: track.videoId,
-      title: track.title,
-      artist: track.artistName,
-      artUri: track.thumbnailUrl != null ? Uri.tryParse(track.thumbnailUrl!) : null,
-      duration: state.duration,
-    ));
+    try {
+      _audioHandler.updateMediaItem(MediaItem(
+        id: track.videoId,
+        title: track.title,
+        artist: track.artistName,
+        artUri: track.thumbnailUrl != null && track.thumbnailUrl!.isNotEmpty
+            ? Uri.tryParse(track.thumbnailUrl!)
+            : null,
+        duration: state.duration,
+      ));
+    } catch (e, st) {
+      debugPrint('[PlayerController] Erro ao atualizar notificação: $e\n$st');
+    }
   }
 
   void _initSubscriptions() {

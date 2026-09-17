@@ -48,10 +48,14 @@ void main() async {
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.mymusiconline.channel.audio',
       androidNotificationChannelName: 'Música',
-      androidNotificationIcon: 'drawable/ic_notification',
+      androidNotificationIcon: 'mipmap/ic_launcher',
       androidNotificationOngoing: true,
     ),
   );
+
+  AudioService.asyncError.listen((error) {
+    debugPrint('[AudioService] asyncError capturado: $error');
+  });
 
   runApp(
     ProviderScope(

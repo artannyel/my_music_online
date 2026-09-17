@@ -38,11 +38,15 @@ class AudioDownloaderService {
 
         if (_isExtractorInitialized) {
           // Tenta atualizar o binary do yt-dlp de forma assíncrona
-          YoutubeDLFlutter.instance.updateYoutubeDL().then((up) {
-            debugPrint('[AudioDownloaderService] yt-dlp update status: ${up.status}, version: ${up.version}');
-          }).catchError((e) {
-            debugPrint('[AudioDownloaderService] Aviso ao atualizar yt-dlp: $e');
-          });
+          try {
+            YoutubeDLFlutter.instance.updateYoutubeDL().then((up) {
+              debugPrint('[AudioDownloaderService] yt-dlp update status: ${up.status}, version: ${up.version}');
+            }).catchError((e) {
+              debugPrint('[AudioDownloaderService] Aviso ao atualizar yt-dlp: $e');
+            });
+          } catch (e) {
+            debugPrint('[AudioDownloaderService] Aviso ao invocar updateYoutubeDL: $e');
+          }
         }
         return _isExtractorInitialized;
       } catch (e) {
