@@ -4,6 +4,30 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_music_online/src/features/equalizer/domain/models/equalizer_preset_model.dart';
 import 'package:my_music_online/src/features/equalizer/data/repositories/audio_equalizer_repository.dart';
 import 'package:my_music_online/src/features/equalizer/presentation/controllers/equalizer_controller.dart';
+import 'package:my_music_online/src/features/player/data/services/audio_player_service.dart';
+
+class MockAudioPlayerService extends AudioPlayerService {
+  bool? lastEnabled;
+  double? lastFreq;
+  double? lastGain;
+  Map<double, double>? lastGains;
+
+  @override
+  Future<void> setEqualizerEnabled(bool enabled) async {
+    lastEnabled = enabled;
+  }
+
+  @override
+  Future<void> setBandGain(double frequencyHz, double gainDb) async {
+    lastFreq = frequencyHz;
+    lastGain = gainDb;
+  }
+
+  @override
+  Future<void> setAllBandGains(Map<double, double> gains) async {
+    lastGains = gains;
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -80,6 +104,28 @@ void main() {
 
       final gains = await repo.getBandGains();
       expect(gains[60.0], 0.0);
+    });
+  });
+
+  group('AudioEqualizerRepository with AudioPlayerService Tests', () {
+    test('sincroniza setEnabled, setBandGain e applyPreset com AudioPlayerService', () async {
+      final mockAudioService = MockAudioPlayerService();
+      final repo = AudioEqualizerRepository(audioPlayerService: mockAudioService);
+
+      await repo.setEnabled(false);
+      expect(mockAudioService.lastEnabled, isFalse);
+
+      await repo.setBandGain(60.0, 4.5);
+      expect(mockAudioService.lastFreq, 60.0);
+      expect(mockAudioService.lastGain, 4.5);
+
+      final rockPreset = AudioEqualizerRepository.defaultPresets.firstWhere((p) => p.id == 'rock');
+      await repo.applyPreset(rockPreset);
+      expect(mockAudioService.lastGains, rockPreset.bandGains);
+
+      await repo.initAudioEffects();
+      expect(mockAudioService.lastEnabled, isFalse);
+      expect(mockAudioService.lastGains?[60.0], rockPreset.bandGains[60.0]);
     });
   });
 

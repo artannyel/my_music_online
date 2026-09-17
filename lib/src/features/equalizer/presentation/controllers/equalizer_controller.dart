@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/audio_equalizer_repository.dart';
 import '../../domain/models/equalizer_preset_model.dart';
 import '../../domain/repositories/equalizer_repository.dart';
+import '../../../player/presentation/controllers/player_controller.dart';
 
 /// Provider do repositório de equalização.
 final equalizerRepositoryProvider = Provider<EqualizerRepository>((ref) {
-  return AudioEqualizerRepository();
+  final audioService = ref.watch(audioPlayerServiceProvider);
+  return AudioEqualizerRepository(audioPlayerService: audioService);
 });
 
 /// Estado reativo do Equalizador.
@@ -57,6 +59,10 @@ class EqualizerController extends StateNotifier<EqualizerState> {
       final presets = await _repository.getPresets();
       final enabled = await _repository.isEnabled();
       final gains = await _repository.getBandGains();
+
+      if (_repository is AudioEqualizerRepository) {
+        await _repository.initAudioEffects();
+      }
 
       EqualizerPresetModel? matchedPreset;
       for (final preset in presets) {

@@ -7,6 +7,7 @@ import 'package:my_music_online/src/features/player/data/services/audio_player_s
 import 'package:my_music_online/src/features/player/data/services/app_audio_handler.dart';
 import 'package:my_music_online/src/features/player/data/services/audio_handler_provider.dart';
 import 'package:my_music_online/src/features/player/presentation/controllers/player_controller.dart';
+import 'package:my_music_online/src/features/equalizer/data/repositories/audio_equalizer_repository.dart';
 import 'package:my_music_online/src/features/settings/data/services/yt_cookies_service.dart';
 import 'package:yt_extractor/yt_extractor.dart';
 
@@ -32,6 +33,14 @@ void main() async {
   }
 
   final audioService = AudioPlayerService();
+
+  // Sincroniza configurações prévias do equalizador com o player
+  try {
+    final eqRepo = AudioEqualizerRepository(audioPlayerService: audioService);
+    await eqRepo.initAudioEffects();
+  } catch (e) {
+    debugPrint('[main] Erro ao sincronizar equalizador no boot: $e');
+  }
 
   // Inicializa o AudioService nativo (Background e Lockscreen)
   final audioHandler = await AudioService.init<AppAudioHandler>(
