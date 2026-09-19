@@ -17,4 +17,4 @@ As modificações se espalharão entre as features existentes (`player`, `playli
 - [x] [Task 2: Playlist & Album - Gerenciamento Avançado](./task-2-advanced-playlist-management.md)
 - [x] [Task 3: UI/UX - Reordenação e Swipe to Delete nas Listas](./task-3-drag-drop-and-swipe.md)
 - [x] [Task 4: Player - Persistência, Fila e Integrações](./task-4-player-queue-and-persistence.md)
-- [ ] [Task 5: UI/UX - Confirmação de Exclusão e Prevenção de Swipe Acidental](./task-5-swipe-delete-confirmation.md)
+- [x] [Task 5: UI/UX - Confirmação de Exclusão e Prevenção de Swipe Acidental](./task-5-swipe-delete-confirmation.md)

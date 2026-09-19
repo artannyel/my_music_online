@@ -13,6 +13,7 @@ import '../../../playlist/presentation/widgets/create_playlist_dialog.dart';
 import '../../domain/models/player_state_model.dart';
 import '../controllers/player_controller.dart';
 import '../widgets/song_context_menu_bottom_sheet.dart';
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 
 /// FullPlayerScreen exibe o player de áudio em tela cheia (estilo YouTube Music)
 /// com iluminação Neon Magenta/Violet, barra de progresso scrubber, fila e controle de repetição.
@@ -540,17 +541,8 @@ class _QueueBottomSheetContentState extends ConsumerState<_QueueBottomSheetConte
 
                       return Dismissible(
                         key: ValueKey('queue_${item.id}_$index'),
-                        direction: DismissDirection.horizontal,
+                        direction: DismissDirection.endToStart,
                         background: Container(
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.only(left: 20),
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.delete_outline, color: AppColors.error),
-                        ),
-                        secondaryBackground: Container(
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.only(right: 20),
                           decoration: BoxDecoration(
@@ -569,7 +561,15 @@ class _QueueBottomSheetContentState extends ConsumerState<_QueueBottomSheetConte
                             );
                             return false;
                           }
-                          ref.read(playerControllerProvider.notifier).removeFromQueue(index);
+                          final confirm = await showConfirmDeleteDialog(
+                            context: context,
+                            title: 'Remover da Fila?',
+                            message: 'Deseja remover "${item.title}" da fila de reprodução?',
+                            confirmLabel: 'Remover',
+                          );
+                          if (confirm == true) {
+                            ref.read(playerControllerProvider.notifier).removeFromQueue(index);
+                          }
                           return false;
                         },
                         child: _buildQueueItem(

@@ -9,6 +9,7 @@ import '../../../player/presentation/views/full_player_screen.dart';
 import '../../domain/models/download_task_model.dart';
 import '../../domain/models/offline_track_model.dart';
 import '../controllers/download_controller.dart';
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 
 /// DownloadsScreen exibe as músicas e playlists salvas off-line divididas por pastas e faixas.
 class DownloadsScreen extends ConsumerStatefulWidget {
@@ -490,9 +491,21 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
                 background: Container(
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 20),
-                  color: AppColors.error.withValues(alpha: 0.2),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: const Icon(Icons.delete_outline, color: AppColors.error),
                 ),
+                confirmDismiss: (direction) async {
+                  final confirm = await showConfirmDeleteDialog(
+                    context: context,
+                    title: 'Excluir Download?',
+                    message: 'Tem certeza que deseja excluir o download de "${track.title}" do seu dispositivo?',
+                    confirmLabel: 'Excluir',
+                  );
+                  return confirm ?? false;
+                },
                 onDismissed: (_) {
                   downloadNotifier.deleteOfflineTrack(track.id);
                 },
