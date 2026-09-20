@@ -6,12 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:dart_ytmusic_api/dart_ytmusic_api.dart';
+import 'package:my_music_online/src/features/auth/domain/repositories/auth_repository.dart';
 import 'package:my_music_online/src/features/playlist/presentation/controllers/playlist_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/services/audio_player_service.dart';
 import '../../data/services/app_audio_handler.dart';
 import '../../data/services/audio_handler_provider.dart';
 import '../../domain/models/player_state_model.dart';
+import '../../../history/domain/models/play_log_model.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../history/presentation/controllers/history_controller.dart';
+import '../../../history/domain/repositories/history_repository.dart';
 import '../../../playlist/domain/repositories/playlist_repository.dart';
 
 const _prefsKey = 'player_session';
@@ -28,14 +33,19 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
   final AudioPlayerService _service;
   final AppAudioHandler _audioHandler;
   final PlaylistRepository _playlistRepository;
+  final HistoryRepository _historyRepository;
+  final AuthRepository _authRepository;
   final YTMusic _ytMusic = YTMusic();
   bool _isYtMusicInitialized = false;
+
+  bool _hasLoggedCurrentTrack = false;
+  String? _lastLoggedTrackId;
 
   StreamSubscription? _playerStateSubscription;
   StreamSubscription? _positionSubscription;
   StreamSubscription<Duration?>? _durationSubscription;
 
-  PlayerController(this._service, this._audioHandler, this._playlistRepository) : super(const PlayerStateModel()) {
+  PlayerController(this._service, this._audioHandler, this._playlistRepository, this._historyRepository, this._authRepository) : super(const PlayerStateModel()) {
     _initSubscriptions();
     _audioHandler.onSkipToNext = () => nextTrack();
     _audioHandler.onSkipToPrevious = () => previousTrack();
@@ -78,6 +88,7 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
 
     _positionSubscription = player.positionStream.listen((pos) {
       state = state.copyWith(position: pos);
+      _handlePlaybackProgress(pos);
     });
 
     _durationSubscription = player.durationStream.listen((dur) {
@@ -129,6 +140,62 @@ class PlayerController extends StateNotifier<PlayerStateModel> {
       SharedPreferences.getInstance().then((prefs) => prefs.setString(_prefsKey, data));
     } catch (e) {
       debugPrint('[PlayerController] Erro ao salvar sessão: $e');
+    }
+  }
+
+  /// Lógica de rastreamento de reprodução para o histórico (Task 3).
+  void _handlePlaybackProgress(Duration pos) {
+    final track = state.currentTrack;
+    final currentUserId = _authRepository.currentUser?.id;
+    if (track == null || currentUserId == null || currentUserId.isEmpty) {
+      return;
+    }
+    // Resetar flag quando trocar de faixa
+    if (_lastLoggedTrackId != track.videoId) {
+      _hasLoggedCurrentTrack = false;
+      _lastLoggedTrackId = track.videoId;
+    }
+    if (_hasLoggedCurrentTrack) return;
+
+    final threshold = _calculateThreshold(track.duration);
+    if (pos >= threshold) {
+      _hasLoggedCurrentTrack = true;
+      unawaited(_logPlay(track));
+    }
+  }
+
+  Duration _calculateThreshold(Duration? duration) {
+    if (duration == null || duration.inMilliseconds <= 0) {
+      return const Duration(seconds: 30);
+    }
+    final pctThreshold = Duration(milliseconds: (duration.inMilliseconds * 0.3).round());
+    if (pctThreshold < const Duration(seconds: 30)) {
+      return pctThreshold;
+    }
+    return const Duration(seconds: 30);
+  }
+
+  Future<void> _logPlay(AudioTrackModel track) async {
+    try {
+      final userId = _authRepository.currentUser?.id;
+      if (userId == null || userId.isEmpty) return;
+
+      final log = PlayLogModel(
+        id: track.videoId,
+        userId: userId,
+        trackId: track.videoId,
+        title: track.title,
+        artistName: track.artistName,
+        albumName: track.albumName,
+        thumbnailUrl: track.thumbnailUrl,
+        videoId: track.videoId,
+        duration: track.duration,
+        playedAt: DateTime.now(),
+      );
+      await _historyRepository.logPlay(userId, log);
+      debugPrint('[PlayerController] Log de reprodução salvo: ${track.title}');
+    } catch (e, st) {
+      debugPrint('[PlayerController] Erro ao salvar log: $e\n$st');
     }
   }
 
@@ -543,7 +610,9 @@ final playerControllerProvider = StateNotifierProvider<PlayerController, PlayerS
   final service = ref.watch(audioPlayerServiceProvider);
   final handler = ref.watch(audioHandlerProvider);
   final playlistRepo = ref.watch(playlistRepositoryProvider);
-  final controller = PlayerController(service, handler, playlistRepo);
+  final historyRepo = ref.read(historyRepositoryProvider);
+  final authRepo = ref.read(authRepositoryProvider);
+  final controller = PlayerController(service, handler, playlistRepo, historyRepo, authRepo);
   controller.restoreSession();
   return controller;
 });

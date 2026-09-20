@@ -17,4 +17,6 @@ class RouteNames {
   static const String downloads = '/downloads';
   static const String login = '/login';
   static const String register = '/register';
+  static const String history = '/history';
+  static const String historyTopTracks = '/history/top-tracks';
 }

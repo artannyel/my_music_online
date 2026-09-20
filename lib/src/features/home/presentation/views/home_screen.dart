@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../history/presentation/controllers/history_controller.dart';
+import '../../../history/domain/models/play_log_model.dart';
+import '../../../history/domain/models/top_track_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
@@ -80,6 +84,232 @@ class HomeScreen extends ConsumerWidget {
   }
 
   /// Constrói a capa da mídia ou um fallback elegante com a inicial do título e ícone por tipo
+  Widget _buildHistorySections(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(currentUserProvider);
+    final userId = currentUser?.id ?? '';
+    if (userId.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Histórico Recente',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/history'),
+                child: const Text('Ver tudo'),
+              ),
+            ],
+          ),
+          SizedBox(
+            height: 240,
+            child: ref.watch(recentHistoryProvider(userId)).when(
+              data: (logs) {
+                if (logs.isEmpty) {
+                  return const Center(child: Text('Nenhum histórico', style: TextStyle(color: AppColors.textSecondary)));
+                }
+                return ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: logs.length > 5 ? 5 : logs.length,
+                  itemBuilder: (context, index) {
+                    final log = logs[index];
+                    final thumbUrl = log.thumbnailUrl;
+                    return GestureDetector(
+                      onTap: () => context.push('/history'),
+                      child: Container(
+                        width: 150,
+                        margin: const EdgeInsets.symmetric(horizontal: 6.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Stack(
+                              children: [
+                                Container(
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: AppColors.accentGlow,
+                                        blurRadius: 8,
+                                        offset: Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: thumbUrl != null && thumbUrl.isNotEmpty
+                                        ? CachedNetworkImage(
+                                            imageUrl: thumbUrl,
+                                            fit: BoxFit.cover,
+                                            width: 150,
+                                            height: 150,
+                                            placeholder: (context, url) => Container(color: AppColors.cardBackground, child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                                            errorWidget: (context, url, error) => Container(color: AppColors.cardBackground, child: const Icon(Icons.music_note, color: AppColors.primary)),
+                                          )
+                                        : Container(color: AppColors.cardBackground, child: const Icon(Icons.music_note, size: 30, color: AppColors.primary)),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.9),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.history, color: Colors.white, size: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              log.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              log.artistName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+              loading: () => const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+              error: (err, _) => const SizedBox.shrink(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Top 20 Mais Tocadas',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/history/top-tracks'),
+                child: const Text('Ver tudo'),
+              ),
+            ],
+          ),
+          SizedBox(
+            height: 240,
+            child: ref.watch(topTracksProvider(userId)).when(
+              data: (tracks) {
+                if (tracks.isEmpty) {
+                  return const Center(child: Text('Nenhum ranking', style: TextStyle(color: AppColors.textSecondary)));
+                }
+                return ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: tracks.length > 5 ? 5 : tracks.length,
+                  itemBuilder: (context, index) {
+                    final track = tracks[index];
+                    final thumbUrl = track.thumbnailUrl;
+                    return GestureDetector(
+                      onTap: () => context.push('/history/top-tracks'),
+                      child: Container(
+                        width: 150,
+                        margin: const EdgeInsets.symmetric(horizontal: 6.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Stack(
+                              children: [
+                                Container(
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: AppColors.accentGlow,
+                                        blurRadius: 8,
+                                        offset: Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: thumbUrl != null && thumbUrl.isNotEmpty
+                                        ? CachedNetworkImage(
+                                            imageUrl: thumbUrl,
+                                            fit: BoxFit.cover,
+                                            width: 150,
+                                            height: 150,
+                                            placeholder: (context, url) => Container(color: AppColors.cardBackground, child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                                            errorWidget: (context, url, error) => Container(color: AppColors.cardBackground, child: const Icon(Icons.music_note, color: AppColors.primary)),
+                                          )
+                                        : Container(color: AppColors.cardBackground, child: const Icon(Icons.music_note, size: 30, color: AppColors.primary)),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondary.withValues(alpha: 0.9),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.trending_up, color: Colors.white, size: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              track.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              track.artistName ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+              loading: () => const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+              error: (err, _) => const SizedBox.shrink(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildImageOrFallback(HomeItemModel item, {double? width, double? height, bool isCircle = false}) {
     final hasUrl = item.thumbnailUrl != null && item.thumbnailUrl!.trim().isNotEmpty;
 
@@ -249,6 +479,10 @@ class HomeScreen extends ConsumerWidget {
 
               const SliverToBoxAdapter(
                 child: SizedBox(height: 40),
+              ),
+              // Histórico Recente
+              SliverToBoxAdapter(
+                child: _buildHistorySections(context, ref),
               ),
             ],
           ),

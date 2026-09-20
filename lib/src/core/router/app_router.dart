@@ -16,6 +16,8 @@ import 'package:my_music_online/src/features/settings/presentation/views/cookies
 import 'package:my_music_online/src/features/settings/presentation/views/cookies_settings_screen.dart';
 import 'package:my_music_online/src/features/auth/presentation/views/login_screen.dart';
 import 'package:my_music_online/src/features/auth/presentation/views/register_screen.dart';
+import 'package:my_music_online/src/features/history/presentation/views/history_screen.dart';
+import 'package:my_music_online/src/features/history/presentation/views/top_tracks_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -126,6 +128,18 @@ class AppRouter {
             path: RouteNames.downloads,
             builder: (BuildContext context, GoRouterState state) {
               return const DownloadsScreen();
+            },
+          ),
+          GoRoute(
+            path: RouteNames.history,
+            builder: (BuildContext context, GoRouterState state) {
+              return const HistoryScreen();
+            },
+          ),
+          GoRoute(
+            path: RouteNames.historyTopTracks,
+            builder: (BuildContext context, GoRouterState state) {
+              return const TopTracksScreen();
             },
           ),
           GoRoute(
