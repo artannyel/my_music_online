@@ -12,12 +12,13 @@ import '../../../playlist/presentation/widgets/add_to_playlist_bottom_sheet.dart
 import '../../../playlist/presentation/widgets/create_playlist_dialog.dart';
 import '../../domain/models/player_state_model.dart';
 import '../controllers/player_controller.dart';
+import '../widgets/lyrics_view_widget.dart';
 import '../widgets/song_context_menu_bottom_sheet.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 
 /// FullPlayerScreen exibe o player de áudio em tela cheia (estilo YouTube Music)
-/// com iluminação Neon Magenta/Violet, barra de progresso scrubber, fila e controle de repetição.
-class FullPlayerScreen extends ConsumerWidget {
+/// com iluminação Neon Magenta/Violet, barra de progresso scrubber, fila, letras e controle de repetição.
+class FullPlayerScreen extends ConsumerStatefulWidget {
   const FullPlayerScreen({super.key});
 
   static Future<void> show(BuildContext context) {
@@ -30,6 +31,13 @@ class FullPlayerScreen extends ConsumerWidget {
     );
   }
 
+  @override
+  ConsumerState<FullPlayerScreen> createState() => _FullPlayerScreenState();
+}
+
+class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
+  bool _showLyrics = false;
+
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -37,7 +45,7 @@ class FullPlayerScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final playerState = ref.watch(playerControllerProvider);
     final track = playerState.currentTrack;
 
@@ -106,50 +114,63 @@ class FullPlayerScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Arte da Capa com Brilho Neon Magenta/Violet e Suporte a Gesto de Arraste (Swipe)
-                GestureDetector(
-                  onHorizontalDragEnd: (details) {
-                    if (details.primaryVelocity != null) {
-                      if (details.primaryVelocity! < -200) {
-                        // Arrastar para a esquerda: Próxima música
-                        ref.read(playerControllerProvider.notifier).nextTrack();
-                      } else if (details.primaryVelocity! > 200) {
-                        // Arrastar para a direita: Música anterior
-                        ref.read(playerControllerProvider.notifier).previousTrack();
+                // Área Central: Alternância animada entre Capa Neon e Letras de Música
+                AnimatedCrossFade(
+                  crossFadeState: _showLyrics
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  duration: const Duration(milliseconds: 300),
+                  firstChild: GestureDetector(
+                    onHorizontalDragEnd: (details) {
+                      if (details.primaryVelocity != null) {
+                        if (details.primaryVelocity! < -200) {
+                          // Arrastar para a esquerda: Próxima música
+                          ref.read(playerControllerProvider.notifier).nextTrack();
+                        } else if (details.primaryVelocity! > 200) {
+                          // Arrastar para a direita: Música anterior
+                          ref.read(playerControllerProvider.notifier).previousTrack();
+                        }
                       }
-                    }
-                  },
-                  child: Center(
-                    child: Container(
-                      width: MediaQuery.of(context).size.width * 0.75,
-                      height: MediaQuery.of(context).size.width * 0.75,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: AppColors.accentGlow,
-                            blurRadius: 30,
-                            spreadRadius: 2,
-                            offset: Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: track.thumbnailUrl != null && track.thumbnailUrl!.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: track.thumbnailUrl!,
-                                fit: BoxFit.cover,
-                                errorWidget: (context, url, error) => Container(
+                    },
+                    child: Center(
+                      child: Container(
+                        width: MediaQuery.of(context).size.width * 0.75,
+                        height: MediaQuery.of(context).size.width * 0.75,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: AppColors.accentGlow,
+                              blurRadius: 30,
+                              spreadRadius: 2,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: track.thumbnailUrl != null && track.thumbnailUrl!.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: track.thumbnailUrl!,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (context, url, error) => Container(
+                                    color: AppColors.cardBackground,
+                                    child: const Icon(Icons.music_note, size: 100, color: AppColors.primary),
+                                  ),
+                                )
+                              : Container(
                                   color: AppColors.cardBackground,
                                   child: const Icon(Icons.music_note, size: 100, color: AppColors.primary),
                                 ),
-                              )
-                            : Container(
-                                color: AppColors.cardBackground,
-                                child: const Icon(Icons.music_note, size: 100, color: AppColors.primary),
-                              ),
+                        ),
                       ),
+                    ),
+                  ),
+                  secondChild: Center(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width * 0.85,
+                      height: MediaQuery.of(context).size.width * 0.80,
+                      child: const LyricsViewWidget(),
                     ),
                   ),
                 ),
@@ -188,6 +209,19 @@ class FullPlayerScreen extends ConsumerWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        IconButton(
+                          icon: Icon(
+                            _showLyrics ? Icons.lyrics_rounded : Icons.lyrics_outlined,
+                            color: _showLyrics ? AppColors.primary : AppColors.textSecondary,
+                            size: 26,
+                          ),
+                          tooltip: _showLyrics ? 'Ocultar letra' : 'Ver letra da música',
+                          onPressed: () {
+                            setState(() {
+                              _showLyrics = !_showLyrics;
+                            });
+                          },
+                        ),
                         DownloadButtonWidget(track: track, iconSize: 28),
                         IconButton(
                           icon: const Icon(Icons.playlist_add_rounded, color: AppColors.primary, size: 28),
