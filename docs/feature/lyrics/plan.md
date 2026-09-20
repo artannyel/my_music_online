@@ -38,6 +38,6 @@ lib/src/features/player/
 ```
 
 ## 4. Divisão de Tasks
-- [ ] [Task 1: Domain & Data - Modelos e Repositório de Letras](./task-1-lyrics-repository.md)
-- [ ] [Task 2: Presentation - Controller de Letras e Sincronização em Tempo Real](./task-2-lyrics-controller.md)
-- [ ] [Task 3: UI/UX - Integração de Letras no FullPlayerScreen e Visualização](./task-3-lyrics-player-ui.md)
+- [x] [Task 1: Domain & Data - Modelos e Repositório de Letras](./task-1-lyrics-repository.md)
+- [x] [Task 2: Presentation - Controller de Letras e Sincronização em Tempo Real](./task-2-lyrics-controller.md)
+- [x] [Task 3: UI/UX - Integração de Letras no FullPlayerScreen e Visualização](./task-3-lyrics-player-ui.md)
