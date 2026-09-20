@@ -11,6 +11,7 @@ import '../../../player/presentation/controllers/player_controller.dart';
 import '../../../player/presentation/views/full_player_screen.dart';
 import '../../../player/presentation/widgets/song_context_menu_bottom_sheet.dart';
 import '../../../../core/widgets/offline_fallback_widget.dart';
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/models/playlist_model.dart';
 import '../controllers/playlist_controller.dart';
 
@@ -477,17 +478,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                           (currentTrack.videoId == (track.videoId ?? track.id) || currentTrack.id == track.id);
                       return Dismissible(
                         key: ValueKey('playlist_track_${track.id}_$index'),
-                        direction: DismissDirection.horizontal,
+                        direction: DismissDirection.endToStart,
                         background: Container(
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.only(left: 20),
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.delete_outline, color: AppColors.error),
-                        ),
-                        secondaryBackground: Container(
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.only(right: 20),
                           decoration: BoxDecoration(
@@ -497,12 +489,20 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                           child: const Icon(Icons.delete_outline, color: AppColors.error),
                         ),
                         confirmDismiss: (direction) async {
-                          final updated = List<PlaylistTrackModel>.from(playlist.tracks)..removeAt(index);
-                          ref.read(playlistDetailsProvider((id: widget.playlistId, url: widget.url)).notifier).updateTracks(updated);
-                          await ref.read(playlistMutationsProvider.notifier).removeTrackFromPlaylist(
-                            playlistId: playlist.id,
-                            trackId: track.id,
+                          final confirm = await showConfirmDeleteDialog(
+                            context: context,
+                            title: 'Remover da Playlist?',
+                            message: 'Deseja remover "${track.title}" desta playlist?',
+                            confirmLabel: 'Remover',
                           );
+                          if (confirm == true) {
+                            final updated = List<PlaylistTrackModel>.from(playlist.tracks)..removeAt(index);
+                            ref.read(playlistDetailsProvider((id: widget.playlistId, url: widget.url)).notifier).updateTracks(updated);
+                            await ref.read(playlistMutationsProvider.notifier).removeTrackFromPlaylist(
+                              playlistId: playlist.id,
+                              trackId: track.id,
+                            );
+                          }
                           return false;
                         },
                         child: Padding(
