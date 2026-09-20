@@ -19,7 +19,8 @@ class _LyricsViewWidgetState extends ConsumerState<LyricsViewWidget> {
   bool _userIsScrolling = false;
 
   // 1. GlobalKey por linha (no State do widget):
-  late List<GlobalKey> _lineKeys;
+  List<GlobalKey> _lineKeys = [];
+  String? _lastLoadedVideoId;
 
   @override
   void dispose() {
@@ -29,6 +30,7 @@ class _LyricsViewWidgetState extends ConsumerState<LyricsViewWidget> {
 
   void _scrollToActiveLine(int index) {
     if (_userIsScrolling || !_scrollController.hasClients || index < 0) return;
+    if (index >= _lineKeys.length) return;
 
     final context = _lineKeys[index].currentContext;
     if (context == null) return;
@@ -136,10 +138,14 @@ class _LyricsViewWidgetState extends ConsumerState<LyricsViewWidget> {
 
           // Caso 1: Letras Sincronizadas
           if (lyrics.hasTimedLyrics && lyrics.timedLines.isNotEmpty) {
-            _lineKeys = List.generate(
-              lyrics.timedLines.length + 5,
-              (_) => GlobalKey(debugLabel: 'line'),
-            );
+            if (_lastLoadedVideoId != lyrics.videoId ||
+                _lineKeys.length < lyrics.timedLines.length) {
+              _lastLoadedVideoId = lyrics.videoId;
+              _lineKeys = List.generate(
+                lyrics.timedLines.length,
+                (_) => GlobalKey(debugLabel: 'line'),
+              );
+            }
             return NotificationListener<ScrollNotification>(
               onNotification: (notification) {
                 if (notification is ScrollStartNotification &&
