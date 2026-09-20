@@ -5,8 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../history/presentation/controllers/history_controller.dart';
-import '../../../history/domain/models/play_log_model.dart';
-import '../../../history/domain/models/top_track_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../player/domain/models/player_state_model.dart';
 import '../../../player/presentation/controllers/player_controller.dart';
